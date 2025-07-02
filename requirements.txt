@@ -1,5 +1,6 @@
 # Core Framework
 streamlit>=1.32.0
+aiohttp
 
 # Gemini API
 google-generativeai>=0.3.2
