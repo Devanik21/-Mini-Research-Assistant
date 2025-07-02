@@ -3,6 +3,7 @@ pandas
 numpy
 requests
 beautifulsoup4
+feedparser
 scikit-learn
 plotly
 networkx
