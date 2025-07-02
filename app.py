@@ -35,8 +35,7 @@ import spacy
 from wordcloud import WordCloud
 import seaborn as sns
 import matplotlib.pyplot as plt
-from transformers import pipeline, AutoTokenizer, AutoModel
-import torch
+
 
 import warnings
 warnings.filterwarnings('ignore')
