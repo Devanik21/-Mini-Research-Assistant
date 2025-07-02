@@ -1,1 +1,7 @@
-streamlit requests pandas plotly textblob nltk yfinance
+streamlit 
+requests 
+pandas 
+plotly 
+textblob 
+nltk 
+yfinance
