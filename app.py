@@ -21,6 +21,13 @@ import nltk
 from collections import Counter
 import yfinance as yf
 
+
+st.set_page_config(
+        page_title="🔬 Mini Research Assistant Pro",
+        page_icon="🔬",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
 # Download required NLTK data (run once)
 try:
     nltk.data.find('tokenizers/punkt')
@@ -284,12 +291,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
         return f"Gemini API request failed: {e}"
 
 def main():
-    st.set_page_config(
-        page_title="🔬 Mini Research Assistant Pro",
-        page_icon="🔬",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
+
     
     # Custom CSS
     st.markdown("""
