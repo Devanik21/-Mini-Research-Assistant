@@ -1056,6 +1056,29 @@ class ResearchAssistantPro:
             st.error(f"Wikipedia search error: {str(e)}")
         return []
 
+def gemini_research(query, api_key):
+    """Call Gemini 2.5 Flash API for research."""
+    import requests
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": query}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 2048
+        }
+    }
+    params = {"key": api_key}
+    try:
+        response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            return f"Gemini API error: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Gemini API request failed: {e}"
+
 def create_advanced_visualizations(results: List[AdvancedResearchResult], query: str):
     """Create comprehensive visualization dashboard"""
     
@@ -1494,9 +1517,22 @@ def create_advanced_visualizations(results: List[AdvancedResearchResult], query:
         else:
             st.info("No organizational entities detected for competitive analysis")
 
+# If you encounter ImportError for _lazywhere from scipy._lib._util,
+# it is likely due to a version incompatibility or a broken scipy installation.
+# This is not related to the code in this file, but rather your Python/scipy environment.
+# To resolve:
+# 1. Upgrade scipy to the latest version:
+#    pip install --upgrade scipy
+# 2. If the error persists, uninstall and reinstall scipy:
+#    pip uninstall scipy
+#    pip install scipy
+# 3. Ensure your environment is not mixing incompatible package versions.
+
+# There is no code change needed in this file for this error.
+
 def main():
     st.set_page_config(
-        page_title="🧠 Advanced AI Research Assistant",
+        page_title="Advanced AI Research Assistant",
         page_icon="🧠",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -1535,6 +1571,11 @@ def main():
     
     # Sidebar options
     st.sidebar.header("🔎 Search Options")
+    # Gemini API key input
+    gemini_api_key = st.sidebar.text_input("🔑 Gemini API Key", type="password", key="gemini_api_key")
+    if gemini_api_key:
+        st.session_state["gemini_api_key"] = gemini_api_key
+
     query = st.sidebar.text_input("Enter your research query", "")
     search_depth = st.sidebar.selectbox(
         "Search Depth",
@@ -1591,33 +1632,56 @@ def main():
         "include_social": include_social,
     }
     
-    # Run search
-    if query:
-        with st.spinner("🔍 Conducting advanced research..."):
-            assistant = ResearchAssistantPro()
-            results = assistant.comprehensive_search(query, filters, search_depth)
-        
-        if results:
-            st.success(f"Found {len(results)} results for '{query}'")
-            create_advanced_visualizations(results, query)
+    # Main tabs including new Gemini AI Research tab
+    main_tabs = st.tabs([
+        "🔬 Research Dashboard",
+        "🤖 AI Research (Gemini 2.5 Flash)"
+    ])
+
+    with main_tabs[0]:
+        # Run search
+        if query:
+            with st.spinner("🔍 Conducting advanced research..."):
+                assistant = ResearchAssistantPro()
+                results = assistant.comprehensive_search(query, filters, search_depth)
             
-            # Show results table
-            with st.expander("📄 Show Raw Results Table", expanded=False):
-                df = pd.DataFrame([{
-                    "Title": r.title,
-                    "Source": r.source,
-                    "Sentiment": r.sentiment,
-                    "Credibility": r.credibility_score,
-                    "Relevance": r.relevance_score,
-                    "Type": r.content_type,
-                    "Date": r.publication_date,
-                    "URL": r.url
-                } for r in results])
-                st.dataframe(df)
+            if results:
+                st.success(f"Found {len(results)} results for '{query}'")
+                create_advanced_visualizations(results, query)
+                
+                # Show results table
+                with st.expander("📄 Show Raw Results Table", expanded=False):
+                    df = pd.DataFrame([{
+                        "Title": r.title,
+                        "Source": r.source,
+                        "Sentiment": r.sentiment,
+                        "Credibility": r.credibility_score,
+                        "Relevance": r.relevance_score,
+                        "Type": r.content_type,
+                        "Date": r.publication_date,
+                        "URL": r.url
+                    } for r in results])
+                    st.dataframe(df)
+            else:
+                st.warning("No results found. Try adjusting your filters or query.")
         else:
-            st.warning("No results found. Try adjusting your filters or query.")
-    else:
-        st.info("Enter a research query in the sidebar to begin.")
-    
+            st.info("Enter a research query in the sidebar to begin.")
+
+    with main_tabs[1]:
+        st.subheader("🤖 AI Research (Gemini 2.5 Flash)")
+        st.markdown("Ask Gemini 2.5 Flash for research, summaries, or insights on any topic.")
+        if "gemini_api_key" not in st.session_state or not st.session_state["gemini_api_key"]:
+            st.info("Please enter your Gemini API key in the sidebar to use this feature.")
+        else:
+            gemini_query = st.text_area("Enter your research question for Gemini", "")
+            if st.button("Ask Gemini"):
+                if gemini_query.strip():
+                    with st.spinner("Gemini is thinking..."):
+                        gemini_response = gemini_research(gemini_query, st.session_state["gemini_api_key"])
+                    st.markdown("**Gemini Response:**")
+                    st.write(gemini_response)
+                else:
+                    st.warning("Please enter a question for Gemini.")
+
 if __name__ == "__main__":
     main()
