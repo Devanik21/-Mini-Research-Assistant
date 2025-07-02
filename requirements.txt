@@ -1,3 +1,4 @@
+statsmodels
 aiohttp
 streamlit
 pandas
