@@ -20,6 +20,7 @@ from typing import List, Dict, Optional
 import nltk
 from collections import Counter
 import yfinance as yf
+import google.generativeai as genai
 
 # Download required NLTK data (run once)
 try:
@@ -301,6 +302,10 @@ def main():
     with st.sidebar:
         st.header("🎛️ Research Controls")
         
+        # API Key
+        st.subheader("API Keys")
+        google_api_key = st.text_input("Google API Key", type="password", help="Required for AI Summary. Get your key from https://aistudio.google.com/app/apikey")
+
         # Search Configuration
         st.subheader("Search Settings")
         max_results = st.slider("Max Results", 5, 50, 20)
@@ -429,7 +434,7 @@ def main():
         results = st.session_state.last_results
         
         # Tabs for different views
-        tab1, tab2, tab3, tab4 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export", "🤖 AI Summary"])
         
         with tab1:
             st.subheader(f"🔍 Research Results for: '{st.session_state.last_query}'")
@@ -595,6 +600,60 @@ def main():
             with col2:
                 st.metric("Average Relevance", f"{sum(r.relevance_score for r in results) / len(results):.3f}")
                 st.metric("Unique Sources", len(set(r.source for r in results)))
+        
+        with tab5:
+            st.subheader("🤖 AI-Powered Research Summary")
+            st.markdown("Use Gemini 1.5 Flash to generate a summary and analysis of your research results.")
+
+            if not google_api_key:
+                st.warning("Please enter your Google API Key in the sidebar to use the AI Summary feature.")
+            else:
+                if st.button("✨ Generate AI Summary", use_container_width=True, type="primary"):
+                    # Clear previous summary before generating a new one
+                    if 'ai_summary' in st.session_state:
+                        del st.session_state.ai_summary
+
+                    with st.spinner("🧠 The AI is thinking... This may take a moment."):
+                        try:
+                            genai.configure(api_key=google_api_key)
+                            
+                            model = genai.GenerativeModel('gemini-1.5-flash')
+                            
+                            # Prepare the context from search results
+                            context_for_ai = "\n\n".join([
+                                f"Title: {r.title}\nSource: {r.source}\nSnippet: {r.snippet}"
+                                for r in results
+                            ])
+                            
+                            query = st.session_state.last_query
+                            
+                            prompt = f"""
+You are a world-class research analyst. Your task is to synthesize information from multiple sources into a coherent analysis.
+Based on the following research data, provide a comprehensive summary and analysis for the initial query: "{query}"
+
+Here is the data you have gathered from various sources:
+---
+{context_for_ai}
+---
+
+Your analysis should be well-structured and presented in markdown. Please include the following sections:
+1.  **Executive Summary:** A brief, high-level overview of the key findings.
+2.  **Key Themes:** Identify and elaborate on the main themes or topics that emerged from the research.
+3.  **Sentiment Analysis:** Briefly comment on the overall sentiment of the provided snippets and any notable positive or negative points.
+4.  **Contradictions or Gaps:** Point out any conflicting information or areas where more research might be needed.
+5.  **Conclusion & Outlook:** Conclude with the main takeaways and potential implications or future outlook based on the data.
+"""
+                            
+                            response = model.generate_content(prompt)
+                            st.session_state.ai_summary = response.text
+                        except Exception as e:
+                            st.error(f"An error occurred while generating the AI summary: {e}")
+            
+            if 'ai_summary' in st.session_state and st.session_state.ai_summary:
+                st.markdown(st.session_state.ai_summary)
+                if st.button("🧹 Clear Summary", use_container_width=True):
+                    del st.session_state.ai_summary
+                    st.rerun()
     
     # Footer
     st.markdown("---")
