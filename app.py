@@ -261,9 +261,9 @@ class AdvancedResearchAssistant:
         return research_results[:max_results]
 
 def gemini_flash_response(prompt: str, api_key: str) -> str:
-    """Get a response from Gemini 1.5 Flash for a given prompt."""
+    """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -343,8 +343,8 @@ def main():
         # --- AI Assistant API Key ---
         st.subheader("🤖 AI Assistant")
         gemini_api_key = st.text_input("Google Gemini API Key", type="password", key="gemini_api_key")
-        if gemini_api_key:
-            st.session_state["gemini_api_key"] = gemini_api_key
+        # Do NOT assign to st.session_state["gemini_api_key"] here to avoid StreamlitAPIException
+        # Use gemini_api_key directly everywhere below
         
         # Search Configuration
         st.subheader("Search Settings")
@@ -388,16 +388,16 @@ def main():
     tab_ai, tab_research = st.tabs(["🤖 AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## 🤖 Gemini 1.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
-        if "gemini_api_key" not in st.session_state or not st.session_state["gemini_api_key"]:
+        st.markdown("## 🤖 Gemini 2.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
+        if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
-            ai_prompt = st.text_area("Enter your prompt for Gemini 1.5 Flash", "", height=120)
+            ai_prompt = st.text_area("Enter your prompt for Gemini 2.5 Flash", "", height=120)
             if st.button("Generate AI Response", key="ai_generate"):
                 if ai_prompt.strip():
                     with st.spinner("Gemini is thinking..."):
-                        ai_response = gemini_flash_response(ai_prompt, st.session_state["gemini_api_key"])
+                        ai_response = gemini_flash_response(ai_prompt, gemini_api_key)
                     st.markdown("**Gemini Response:**")
                     st.write(ai_response)
                 else:
