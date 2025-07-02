@@ -169,41 +169,6 @@ class AdvancedResearchAssistant:
             st.error(f"Wikipedia search error: {str(e)}")
         return []
     
-    def search_newsapi(self, query: str, api_key: str, num_results: int = 10) -> List[Dict]:
-        """Search for news articles using NewsAPI.org"""
-        if not api_key:
-            return []
-        try:
-            url = "https://newsapi.org/v2/everything"
-            params = {
-                'q': query,
-                'apiKey': api_key,
-                'pageSize': num_results,
-                'language': 'en',
-                'sortBy': 'relevancy'
-            }
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()  # Raise an exception for bad status codes
-            
-            data = response.json()
-            results = []
-            for article in data.get('articles', []):
-                results.append({
-                    'title': article.get('title', ''),
-                    'url': article.get('url', ''),
-                    'snippet': article.get('description', ''),
-                    'source': 'NewsAPI'
-                })
-            return results
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 401:
-                st.error("NewsAPI Error: Invalid API Key.")
-            else:
-                st.error(f"NewsAPI Error: {str(e)}")
-        except requests.exceptions.RequestException as e:
-            st.error(f"NewsAPI search error: {str(e)}")
-        return []
-
     def get_stock_data(self, symbol: str) -> Dict:
         """Get stock data using yfinance"""
         try:
@@ -233,28 +198,16 @@ class AdvancedResearchAssistant:
             return self.cache[cache_key]
         
         all_results = []
-        active_sources = []
-        if filters.get('include_web'):
-            active_sources.append('web')
-        if filters.get('include_wikipedia'):
-            active_sources.append('wikipedia')
-        if filters.get('include_news') and filters.get('news_api_key'):
-            active_sources.append('news')
-
-        if not active_sources:
-            return []
-
-        results_per_source = max(1, max_results // len(active_sources))
-
-        if 'web' in active_sources:
-            web_results = self.search_duckduckgo(query, results_per_source)
+        
+        # Search sources based on filters
+        if filters.get('include_web', True):
+            web_results = self.search_duckduckgo(query, max_results // 2)
             all_results.extend(web_results)
-        if 'wikipedia' in active_sources:
-            wiki_results = self.search_wikipedia(query, results_per_source)
+        
+        if filters.get('include_wikipedia', True):
+            # Allocate a portion of max_results to Wikipedia, ensuring at least 1.
+            wiki_results = self.search_wikipedia(query, max(1, max_results // 4))
             all_results.extend(wiki_results)
-        if 'news' in active_sources:
-            news_results = self.search_newsapi(query, filters['news_api_key'], results_per_source)
-            all_results.extend(news_results)
         
         # Convert to ResearchResult objects
         research_results = []
@@ -306,6 +259,29 @@ class AdvancedResearchAssistant:
         self.cache[cache_key] = research_results[:max_results]
         
         return research_results[:max_results]
+
+def gemini_flash_response(prompt: str, api_key: str) -> str:
+    """Get a response from Gemini 1.5 Flash for a given prompt."""
+    import requests
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    headers = {"Content-Type": "application/json"}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 2048
+        }
+    }
+    params = {"key": api_key}
+    try:
+        response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=30)
+        if response.status_code == 200:
+            data = response.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        else:
+            return f"Gemini API error: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Gemini API request failed: {e}"
 
 def main():
     st.set_page_config(
@@ -364,6 +340,11 @@ def main():
     # Sidebar
     with st.sidebar:
         st.header("🎛️ Research Controls")
+        # --- AI Assistant API Key ---
+        st.subheader("🤖 AI Assistant")
+        gemini_api_key = st.text_input("Google Gemini API Key", type="password", key="gemini_api_key")
+        if gemini_api_key:
+            st.session_state["gemini_api_key"] = gemini_api_key
         
         # Search Configuration
         st.subheader("Search Settings")
@@ -371,16 +352,10 @@ def main():
         
         search_sources = st.multiselect(
             "Search Sources",
-            ["Web Search", "Wikipedia", "News", "Stock Data"],
+            ["Web Search", "Wikipedia", "Stock Data"],
             default=["Web Search", "Wikipedia"]
         )
         
-        # API Key Inputs
-        st.subheader("API Keys")
-        news_api_key = st.text_input(
-            "News API Key", type="password", help="Get a free key from newsapi.org"
-        )
-
         # Advanced Filters
         st.subheader("Advanced Filters")
         sentiment_filter = st.selectbox(
@@ -409,269 +384,279 @@ def main():
         if st.button("📊 Analytics Dashboard"):
             st.session_state.show_analytics = True
     
-    # Main search interface
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        if selected_template != "Custom":
-            query = st.text_area(
-                "🔍 Research Query",
-                value=templates[selected_template],
-                height=100,
-                help="Enter your research query. Use keywords and specific terms for best results."
-            )
-        else:
-            query = st.text_area(
-                "🔍 Research Query",
-                placeholder="Enter your research question or topic...",
-                height=100,
-                help="Enter your research query. Use keywords and specific terms for best results."
-            )
-    
-    with col2:
-        st.markdown("<br>", unsafe_allow_html=True)
-        search_button = st.button("🚀 Start Research", type="primary", use_container_width=True)
-        
-        if st.button("🧹 Clear Cache", use_container_width=True):
-            st.session_state.research_assistant.cache.clear()
-            st.success("Cache cleared!")
-    
-    # Stock ticker input for financial research
-    if "Stock Data" in search_sources:
-        stock_symbol = st.text_input("📈 Stock Symbol (optional)", placeholder="AAPL, GOOGL, TSLA...")
-    
-    # Search execution
-    if search_button and query:
-        filters = {
-            'include_web': "Web Search" in search_sources,
-            'include_wikipedia': "Wikipedia" in search_sources,
-            'include_news': "News" in search_sources,
-            'news_api_key': news_api_key,
-            'sentiment_filter': sentiment_filter.lower() if sentiment_filter != "All" else None,
-            'date_range': date_range
-        }
-        
-        # Pre-flight check for API keys
-        if "News" in search_sources and not news_api_key:
-            st.warning("Please enter a News API key in the sidebar to search for news.")
-            st.stop()
+    # --- Main Tabs: AI Assistant and Research Tool ---
+    tab_ai, tab_research = st.tabs(["🤖 AI Assistant", "🔬 Research Tool"])
 
-        with st.spinner("🔍 Conducting comprehensive research..."):
-            results = ra.comprehensive_search(query, filters, max_results)
-            
-            # Store results in session state
-            st.session_state.last_results = results
-            st.session_state.last_query = query
-            
-            # Display metrics
-            if results:
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    st.markdown(f'<div class="metric-card"><h3>{len(results)}</h3><p>Results Found</p></div>', unsafe_allow_html=True)
-                
-                with col2:
-                    avg_sentiment = sum(r.sentiment for r in results) / len(results)
-                    sentiment_emoji = "😊" if avg_sentiment > 0.1 else "😐" if avg_sentiment > -0.1 else "😔"
-                    st.markdown(f'<div class="metric-card"><h3>{sentiment_emoji}</h3><p>Avg Sentiment: {avg_sentiment:.2f}</p></div>', unsafe_allow_html=True)
-                
-                with col3:
-                    avg_relevance = sum(r.relevance_score for r in results) / len(results)
-                    st.markdown(f'<div class="metric-card"><h3>{avg_relevance:.1%}</h3><p>Avg Relevance</p></div>', unsafe_allow_html=True)
-                
-                with col4:
-                    sources = set(r.source for r in results)
-                    st.markdown(f'<div class="metric-card"><h3>{len(sources)}</h3><p>Sources Used</p></div>', unsafe_allow_html=True)
-    
-    # Display stock data if requested
-    if search_button and "Stock Data" in search_sources and 'stock_symbol' in locals() and stock_symbol:
-        with st.spinner(f"📈 Fetching stock data for {stock_symbol}..."):
-            stock_data = ra.get_stock_data(stock_symbol.upper())
-            
-            if stock_data:
-                st.subheader(f"📊 Stock Analysis: {stock_data.get('name', stock_symbol)}")
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Current Price", f"${stock_data.get('price', 0):.2f}")
-                with col2:
-                    change = stock_data.get('change', 0)
-                    st.metric("Change %", f"{change:.2f}%", delta=f"{change:.2f}%")
-                with col3:
-                    volume = stock_data.get('volume', 0)
-                    st.metric("Volume", f"{volume:,}")
-    
-    # Display results
-    if 'last_results' in st.session_state and st.session_state.last_results:
-        results = st.session_state.last_results
+    with tab_ai:
+        st.markdown("## 🤖 Gemini 1.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
+        if "gemini_api_key" not in st.session_state or not st.session_state["gemini_api_key"]:
+            st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
+        else:
+            ai_prompt = st.text_area("Enter your prompt for Gemini 1.5 Flash", "", height=120)
+            if st.button("Generate AI Response", key="ai_generate"):
+                if ai_prompt.strip():
+                    with st.spinner("Gemini is thinking..."):
+                        ai_response = gemini_flash_response(ai_prompt, st.session_state["gemini_api_key"])
+                    st.markdown("**Gemini Response:**")
+                    st.write(ai_response)
+                else:
+                    st.warning("Please enter a prompt for Gemini.")
+
+    with tab_research:
+        st.subheader("🔬 Research Tool")
         
-        # Tabs for different views
-        tab1, tab2, tab3, tab4 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export"])
-        
-        with tab1:
-            st.subheader(f"🔍 Research Results for: '{st.session_state.last_query}'")
-            
-            # Sort options
-            sort_by = st.selectbox("Sort by", ["Relevance", "Sentiment", "Source", "Title"])
-            
-            if sort_by == "Relevance":
-                sorted_results = sorted(results, key=lambda x: x.relevance_score, reverse=True)
-            elif sort_by == "Sentiment":
-                sorted_results = sorted(results, key=lambda x: x.sentiment, reverse=True)
-            elif sort_by == "Source":
-                sorted_results = sorted(results, key=lambda x: x.source)
+        # Only allow research after clicking "Start Research"
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            if 'selected_template' in locals() and selected_template != "Custom":
+                query = st.text_area(
+                    "🔍 Research Query",
+                    value=templates[selected_template],
+                    height=100,
+                    help="Enter your research query. Use keywords and specific terms for best results."
+                )
             else:
-                sorted_results = sorted(results, key=lambda x: x.title)
+                query = st.text_area(
+                    "🔍 Research Query",
+                    placeholder="Enter your research question or topic...",
+                    height=100,
+                    help="Enter your research query. Use keywords and specific terms for best results."
+                )
+        
+        with col2:
+            st.markdown("<br>", unsafe_allow_html=True)
+            search_button = st.button("🚀 Start Research", type="primary", use_container_width=True)
+            if st.button("🧹 Clear Cache", use_container_width=True):
+                st.session_state.research_assistant.cache.clear()
+                st.success("Cache cleared!")
+        
+        # Stock ticker input for financial research
+        if "Stock Data" in search_sources:
+            stock_symbol = st.text_input("📈 Stock Symbol (optional)", placeholder="AAPL, GOOGL, TSLA...")
+        
+        # --- Only run research if Start Research is clicked ---
+        if search_button and query:
+            filters = {
+                'include_web': "Web Search" in search_sources,
+                'include_wikipedia': "Wikipedia" in search_sources,
+                'sentiment_filter': sentiment_filter.lower() if sentiment_filter != "All" else None,
+                'date_range': date_range
+            }
+            with st.spinner("🔍 Conducting comprehensive research..."):
+                results = ra.comprehensive_search(query, filters, max_results)
+                st.session_state.last_results = results
+                st.session_state.last_query = query
+                
+                # Display metrics
+                if results:
+                    col1, col2, col3, col4 = st.columns(4)
+                    
+                    with col1:
+                        st.markdown(f'<div class="metric-card"><h3>{len(results)}</h3><p>Results Found</p></div>', unsafe_allow_html=True)
+                    
+                    with col2:
+                        avg_sentiment = sum(r.sentiment for r in results) / len(results)
+                        sentiment_emoji = "😊" if avg_sentiment > 0.1 else "😐" if avg_sentiment > -0.1 else "😔"
+                        st.markdown(f'<div class="metric-card"><h3>{sentiment_emoji}</h3><p>Avg Sentiment: {avg_sentiment:.2f}</p></div>', unsafe_allow_html=True)
+                    
+                    with col3:
+                        avg_relevance = sum(r.relevance_score for r in results) / len(results)
+                        st.markdown(f'<div class="metric-card"><h3>{avg_relevance:.1%}</h3><p>Avg Relevance</p></div>', unsafe_allow_html=True)
+                    
+                    with col4:
+                        sources = set(r.source for r in results)
+                        st.markdown(f'<div class="metric-card"><h3>{len(sources)}</h3><p>Sources Used</p></div>', unsafe_allow_html=True)
+        
+        # Display stock data if requested
+        if search_button and "Stock Data" in search_sources and 'stock_symbol' in locals() and stock_symbol:
+            with st.spinner(f"📈 Fetching stock data for {stock_symbol}..."):
+                stock_data = ra.get_stock_data(stock_symbol.upper())
+                
+                if stock_data:
+                    st.subheader(f"📊 Stock Analysis: {stock_data.get('name', stock_symbol)}")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Current Price", f"${stock_data.get('price', 0):.2f}")
+                    with col2:
+                        change = stock_data.get('change', 0)
+                        st.metric("Change %", f"{change:.2f}%", delta=f"{change:.2f}%")
+                    with col3:
+                        volume = stock_data.get('volume', 0)
+                        st.metric("Volume", f"{volume:,}")
+        
+        # Display results
+        if 'last_results' in st.session_state and st.session_state.last_results:
+            results = st.session_state.last_results
             
-            # Display results
-            for i, result in enumerate(sorted_results, 1):
-                # Determine relevance class
-                if result.relevance_score > 0.7:
-                    relevance_class = "relevance-high"
-                elif result.relevance_score > 0.3:
-                    relevance_class = "relevance-medium"
+            # Tabs for different views
+            tab1, tab2, tab3, tab4 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export"])
+            
+            with tab1:
+                st.subheader(f"🔍 Research Results for: '{st.session_state.last_query}'")
+                
+                # Sort options
+                sort_by = st.selectbox("Sort by", ["Relevance", "Sentiment", "Source", "Title"])
+                
+                if sort_by == "Relevance":
+                    sorted_results = sorted(results, key=lambda x: x.relevance_score, reverse=True)
+                elif sort_by == "Sentiment":
+                    sorted_results = sorted(results, key=lambda x: x.sentiment, reverse=True)
+                elif sort_by == "Source":
+                    sorted_results = sorted(results, key=lambda x: x.source)
                 else:
-                    relevance_class = "relevance-low"
+                    sorted_results = sorted(results, key=lambda x: x.title)
                 
-                # Sentiment styling
-                if result.sentiment > 0.1:
-                    sentiment_class = "sentiment-positive"
-                    sentiment_emoji = "😊"
-                elif result.sentiment < -0.1:
-                    sentiment_class = "sentiment-negative"
-                    sentiment_emoji = "😔"
-                else:
-                    sentiment_class = "sentiment-neutral"
-                    sentiment_emoji = "😐"
+                # Display results
+                for i, result in enumerate(sorted_results, 1):
+                    # Determine relevance class
+                    if result.relevance_score > 0.7:
+                        relevance_class = "relevance-high"
+                    elif result.relevance_score > 0.3:
+                        relevance_class = "relevance-medium"
+                    else:
+                        relevance_class = "relevance-low"
+                    
+                    # Sentiment styling
+                    if result.sentiment > 0.1:
+                        sentiment_class = "sentiment-positive"
+                        sentiment_emoji = "😊"
+                    elif result.sentiment < -0.1:
+                        sentiment_class = "sentiment-negative"
+                        sentiment_emoji = "😔"
+                    else:
+                        sentiment_class = "sentiment-neutral"
+                        sentiment_emoji = "😐"
+                    
+                    st.markdown(f"""
+                    <div class="result-card {relevance_class}">
+                        <h4>{i}. {result.title}</h4>
+                        <p><strong>Source:</strong> {result.source} | 
+                        <strong>Relevance:</strong> {result.relevance_score:.1%} | 
+                        <strong>Sentiment:</strong> <span class="{sentiment_class}">{sentiment_emoji} {result.sentiment:.2f}</span></p>
+                        <p>{result.snippet}</p>
+                        {f'<p><a href="{result.url}" target="_blank">🔗 Read More</a></p>' if result.url else ''}
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            with tab2:
+                st.subheader("📊 Research Analytics")
                 
-                st.markdown(f"""
-                <div class="result-card {relevance_class}">
-                    <h4>{i}. {result.title}</h4>
-                    <p><strong>Source:</strong> {result.source} | 
-                    <strong>Relevance:</strong> {result.relevance_score:.1%} | 
-                    <strong>Sentiment:</strong> <span class="{sentiment_class}">{sentiment_emoji} {result.sentiment:.2f}</span></p>
-                    <p>{result.snippet}</p>
-                    {f'<p><a href="{result.url}" target="_blank">🔗 Read More</a></p>' if result.url else ''}
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with tab2:
-            st.subheader("📊 Research Analytics")
-            
-            # Sentiment distribution
-            sentiments = [r.sentiment for r in results]
-            fig_sentiment = px.histogram(
-                x=sentiments,
-                nbins=20,
-                title="Sentiment Distribution",
-                labels={'x': 'Sentiment Score', 'y': 'Count'}
-            )
-            st.plotly_chart(fig_sentiment, use_container_width=True)
-            
-            # Source distribution
-            source_counts = pd.DataFrame([r.source for r in results], columns=['Source']).value_counts().reset_index()
-            source_counts.columns = ['Source', 'Count']
-            
-            fig_sources = px.pie(
-                source_counts,
-                values='Count',
-                names='Source',
-                title="Results by Source"
-            )
-            st.plotly_chart(fig_sources, use_container_width=True)
-            
-            # Relevance vs Sentiment scatter
-            df_scatter = pd.DataFrame({
-                'Relevance': [r.relevance_score for r in results],
-                'Sentiment': [r.sentiment for r in results],
-                'Source': [r.source for r in results],
-                'Title': [r.title[:50] + '...' if len(r.title) > 50 else r.title for r in results]
-            })
-            
-            fig_scatter = px.scatter(
-                df_scatter,
-                x='Relevance',
-                y='Sentiment',
-                color='Source',
-                hover_data=['Title'],
-                title="Relevance vs Sentiment Analysis"
-            )
-            st.plotly_chart(fig_scatter, use_container_width=True)
-        
-        with tab3:
-            st.subheader("🏷️ Keyword Analysis")
-            
-            # Extract keywords from all snippets
-            all_text = " ".join([r.snippet for r in results])
-            keywords = ra.extract_keywords(all_text, 20)
-            
-            if keywords:
-                # Create word frequency chart
-                word_freq = Counter(all_text.lower().split())
-                common_words = [(word, count) for word, count in word_freq.most_common(15) if word in keywords]
+                # Sentiment distribution
+                sentiments = [r.sentiment for r in results]
+                fig_sentiment = px.histogram(
+                    x=sentiments,
+                    nbins=20,
+                    title="Sentiment Distribution",
+                    labels={'x': 'Sentiment Score', 'y': 'Count'}
+                )
+                st.plotly_chart(fig_sentiment, use_container_width=True)
                 
-                if common_words:
-                    df_words = pd.DataFrame(common_words, columns=['Word', 'Frequency'])
-                    fig_words = px.bar(
-                        df_words,
-                        x='Frequency',
-                        y='Word',
-                        orientation='h',
-                        title="Most Frequent Keywords"
-                    )
-                    st.plotly_chart(fig_words, use_container_width=True)
+                # Source distribution
+                source_counts = pd.DataFrame([r.source for r in results], columns=['Source']).value_counts().reset_index()
+                source_counts.columns = ['Source', 'Count']
                 
-                # Display keyword cloud
-                st.write("**Top Keywords:**")
-                cols = st.columns(5)
-                for i, keyword in enumerate(keywords[:15]):
-                    with cols[i % 5]:
-                        st.button(keyword, key=f"keyword_{i}")
-        
-        with tab4:
-            st.subheader("📥 Export Results")
-            
-            # Prepare export data
-            export_data = []
-            for result in results:
-                export_data.append({
-                    'Title': result.title,
-                    'URL': result.url,
-                    'Snippet': result.snippet,
-                    'Source': result.source,
-                    'Sentiment': result.sentiment,
-                    'Relevance': result.relevance_score,
-                    'Timestamp': result.timestamp.isoformat()
+                fig_sources = px.pie(
+                    source_counts,
+                    values='Count',
+                    names='Source',
+                    title="Results by Source"
+                )
+                st.plotly_chart(fig_sources, use_container_width=True)
+                
+                # Relevance vs Sentiment scatter
+                df_scatter = pd.DataFrame({
+                    'Relevance': [r.relevance_score for r in results],
+                    'Sentiment': [r.sentiment for r in results],
+                    'Source': [r.source for r in results],
+                    'Title': [r.title[:50] + '...' if len(r.title) > 50 else r.title for r in results]
                 })
+                
+                fig_scatter = px.scatter(
+                    df_scatter,
+                    x='Relevance',
+                    y='Sentiment',
+                    color='Source',
+                    hover_data=['Title'],
+                    title="Relevance vs Sentiment Analysis"
+                )
+                st.plotly_chart(fig_scatter, use_container_width=True)
             
-            df_export = pd.DataFrame(export_data)
+            with tab3:
+                st.subheader("🏷️ Keyword Analysis")
+                
+                # Extract keywords from all snippets
+                all_text = " ".join([r.snippet for r in results])
+                keywords = ra.extract_keywords(all_text, 20)
+                
+                if keywords:
+                    # Create word frequency chart
+                    word_freq = Counter(all_text.lower().split())
+                    common_words = [(word, count) for word, count in word_freq.most_common(15) if word in keywords]
+                    
+                    if common_words:
+                        df_words = pd.DataFrame(common_words, columns=['Word', 'Frequency'])
+                        fig_words = px.bar(
+                            df_words,
+                            x='Frequency',
+                            y='Word',
+                            orientation='h',
+                            title="Most Frequent Keywords"
+                        )
+                        st.plotly_chart(fig_words, use_container_width=True)
+                    
+                    # Display keyword cloud
+                    st.write("**Top Keywords:**")
+                    cols = st.columns(5)
+                    for i, keyword in enumerate(keywords[:15]):
+                        with cols[i % 5]:
+                            st.button(keyword, key=f"keyword_{i}")
             
-            # CSV download
-            csv = df_export.to_csv(index=False)
-            st.download_button(
-                label="📁 Download CSV",
-                data=csv,
-                file_name=f"research_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                mime="text/csv"
-            )
-            
-            # JSON download
-            json_data = json.dumps(export_data, indent=2, default=str)
-            st.download_button(
-                label="📄 Download JSON",
-                data=json_data,
-                file_name=f"research_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                mime="application/json"
-            )
-            
-            # Display summary stats
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total Results", len(results))
-                st.metric("Average Sentiment", f"{sum(r.sentiment for r in results) / len(results):.3f}")
-            with col2:
-                st.metric("Average Relevance", f"{sum(r.relevance_score for r in results) / len(results):.3f}")
-                st.metric("Unique Sources", len(set(r.source for r in results)))
+            with tab4:
+                st.subheader("📥 Export Results")
+                
+                # Prepare export data
+                export_data = []
+                for result in results:
+                    export_data.append({
+                        'Title': result.title,
+                        'URL': result.url,
+                        'Snippet': result.snippet,
+                        'Source': result.source,
+                        'Sentiment': result.sentiment,
+                        'Relevance': result.relevance_score,
+                        'Timestamp': result.timestamp.isoformat()
+                    })
+                
+                df_export = pd.DataFrame(export_data)
+                
+                # CSV download
+                csv = df_export.to_csv(index=False)
+                st.download_button(
+                    label="📁 Download CSV",
+                    data=csv,
+                    file_name=f"research_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+                
+                # JSON download
+                json_data = json.dumps(export_data, indent=2, default=str)
+                st.download_button(
+                    label="📄 Download JSON",
+                    data=json_data,
+                    file_name=f"research_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json"
+                )
+                
+                # Display summary stats
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.metric("Total Results", len(results))
+                    st.metric("Average Sentiment", f"{sum(r.sentiment for r in results) / len(results):.3f}")
+                with col2:
+                    st.metric("Average Relevance", f"{sum(r.relevance_score for r in results) / len(results):.3f}")
+                    st.metric("Unique Sources", len(set(r.source for r in results)))
     
     # Footer
     st.markdown("---")
