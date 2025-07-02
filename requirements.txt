@@ -1,9 +1,11 @@
+sentence-transformers
 statsmodels
 aiohttp
 streamlit
 pandas
 langchain-community
 numpy
+scipy
 requests
 beautifulsoup4
 spacy
