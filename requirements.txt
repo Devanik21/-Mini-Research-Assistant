@@ -1,3 +1,4 @@
+aiohttp
 streamlit
 pandas
 numpy
