@@ -35,7 +35,7 @@ import spacy
 from wordcloud import WordCloud
 import seaborn as sns
 import matplotlib.pyplot as plt
-from transformers import pipeline, AutoTokenizer, AutoModel
+#from transformers import pipeline, AutoTokenizer, AutoModel
 import torch
 
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
