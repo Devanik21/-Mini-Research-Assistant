@@ -3,6 +3,7 @@ requests
 pandas
 plotly
 textblob
+google-generativeai
 nltk
 yfinance
 aiohttp
