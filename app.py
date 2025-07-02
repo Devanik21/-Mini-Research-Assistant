@@ -169,6 +169,41 @@ class AdvancedResearchAssistant:
             st.error(f"Wikipedia search error: {str(e)}")
         return []
     
+    def search_newsapi(self, query: str, api_key: str, num_results: int = 10) -> List[Dict]:
+        """Search for news articles using NewsAPI.org"""
+        if not api_key:
+            return []
+        try:
+            url = "https://newsapi.org/v2/everything"
+            params = {
+                'q': query,
+                'apiKey': api_key,
+                'pageSize': num_results,
+                'language': 'en',
+                'sortBy': 'relevancy'
+            }
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()  # Raise an exception for bad status codes
+            
+            data = response.json()
+            results = []
+            for article in data.get('articles', []):
+                results.append({
+                    'title': article.get('title', ''),
+                    'url': article.get('url', ''),
+                    'snippet': article.get('description', ''),
+                    'source': 'NewsAPI'
+                })
+            return results
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
+                st.error("NewsAPI Error: Invalid API Key.")
+            else:
+                st.error(f"NewsAPI Error: {str(e)}")
+        except requests.exceptions.RequestException as e:
+            st.error(f"NewsAPI search error: {str(e)}")
+        return []
+
     def get_stock_data(self, symbol: str) -> Dict:
         """Get stock data using yfinance"""
         try:
@@ -198,16 +233,28 @@ class AdvancedResearchAssistant:
             return self.cache[cache_key]
         
         all_results = []
-        
-        # Search sources based on filters
-        if filters.get('include_web', True):
-            web_results = self.search_duckduckgo(query, max_results // 2)
+        active_sources = []
+        if filters.get('include_web'):
+            active_sources.append('web')
+        if filters.get('include_wikipedia'):
+            active_sources.append('wikipedia')
+        if filters.get('include_news') and filters.get('news_api_key'):
+            active_sources.append('news')
+
+        if not active_sources:
+            return []
+
+        results_per_source = max(1, max_results // len(active_sources))
+
+        if 'web' in active_sources:
+            web_results = self.search_duckduckgo(query, results_per_source)
             all_results.extend(web_results)
-        
-        if filters.get('include_wikipedia', True):
-            # Allocate a portion of max_results to Wikipedia, ensuring at least 1.
-            wiki_results = self.search_wikipedia(query, max(1, max_results // 4))
+        if 'wikipedia' in active_sources:
+            wiki_results = self.search_wikipedia(query, results_per_source)
             all_results.extend(wiki_results)
+        if 'news' in active_sources:
+            news_results = self.search_newsapi(query, filters['news_api_key'], results_per_source)
+            all_results.extend(news_results)
         
         # Convert to ResearchResult objects
         research_results = []
@@ -324,10 +371,16 @@ def main():
         
         search_sources = st.multiselect(
             "Search Sources",
-            ["Web Search", "Wikipedia", "Stock Data"],
+            ["Web Search", "Wikipedia", "News", "Stock Data"],
             default=["Web Search", "Wikipedia"]
         )
         
+        # API Key Inputs
+        st.subheader("API Keys")
+        news_api_key = st.text_input(
+            "News API Key", type="password", help="Get a free key from newsapi.org"
+        )
+
         # Advanced Filters
         st.subheader("Advanced Filters")
         sentiment_filter = st.selectbox(
@@ -392,10 +445,17 @@ def main():
         filters = {
             'include_web': "Web Search" in search_sources,
             'include_wikipedia': "Wikipedia" in search_sources,
+            'include_news': "News" in search_sources,
+            'news_api_key': news_api_key,
             'sentiment_filter': sentiment_filter.lower() if sentiment_filter != "All" else None,
             'date_range': date_range
         }
         
+        # Pre-flight check for API keys
+        if "News" in search_sources and not news_api_key:
+            st.warning("Please enter a News API key in the sidebar to search for news.")
+            st.stop()
+
         with st.spinner("🔍 Conducting comprehensive research..."):
             results = ra.comprehensive_search(query, filters, max_results)
             
