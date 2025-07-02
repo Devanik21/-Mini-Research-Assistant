@@ -1,6 +1,7 @@
 aiohttp
 streamlit
 pandas
+langchain-community
 numpy
 requests
 beautifulsoup4
