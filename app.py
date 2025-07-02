@@ -20,6 +20,7 @@ from typing import List, Dict, Optional
 import nltk
 from collections import Counter
 import yfinance as yf
+import google.generativeai as genai
 
 # Download required NLTK data (run once)
 try:
@@ -244,7 +245,7 @@ class AdvancedResearchAssistant:
         return research_results[:max_results]
 
 def call_gemini_flash(api_key: str, prompt: str) -> str:
-    """Call Gemini 2.5 Flash model with the given prompt and API key."""
+    """Call Gemini 2.5 Flash model with the given prompt and API key (REST API)."""
     try:
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
         headers = {"Content-Type": "application/json"}
@@ -264,6 +265,16 @@ def call_gemini_flash(api_key: str, prompt: str) -> str:
             return resp_json.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "No response.")
         else:
             return f"Error: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Exception: {str(e)}"
+
+def call_gemini_flash_sdk(api_key: str, prompt: str) -> str:
+    """Call Gemini 2.5 Flash model using google-generativeai SDK."""
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        response = model.generate_content(prompt)
+        return response.text if hasattr(response, "text") else str(response)
     except Exception as e:
         return f"Exception: {str(e)}"
 
@@ -456,7 +467,9 @@ def main():
         results = st.session_state.last_results
         
         # Tabs for different views
-        tab1, tab2, tab3, tab4, tab5 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export", "🤖 Gemini 2.5 Flash"])
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export", "🤖 Gemini 2.5 Flash", "🤖 AI Research (Gemini 2.5 Flash)"
+        ])
         
         with tab1:
             st.subheader(f"🔍 Research Results for: '{st.session_state.last_query}'")
@@ -636,6 +649,20 @@ def main():
                     st.write(gemini_response)
                 else:
                     st.info("Run a research query first to use Gemini 2.5 Flash.")
+
+        with tab6:
+            st.subheader("🤖 AI Research (Gemini 2.5 Flash SDK)")
+            if not gemini_api_key:
+                st.info("Please enter your Gemini API key in the sidebar to use this feature.")
+            else:
+                if 'last_query' in st.session_state and st.session_state.last_query:
+                    prompt = st.session_state.last_query
+                    with st.spinner("Calling Gemini 2.5 Flash via SDK..."):
+                        gemini_sdk_response = call_gemini_flash_sdk(gemini_api_key, prompt)
+                    st.markdown("**Gemini 2.5 Flash SDK Response:**")
+                    st.write(gemini_sdk_response)
+                else:
+                    st.info("Run a research query first to use Gemini 2.5 Flash SDK.")
 
     # Footer
     st.markdown("---")
