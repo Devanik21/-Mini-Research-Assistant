@@ -1,7 +1,34 @@
-streamlit 
-requests 
-pandas 
-plotly 
-textblob 
-nltk 
-yfinance
+# Core Framework
+streamlit>=1.32.0
+
+# Gemini API
+google-generativeai>=0.3.2
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Data Handling
+pandas>=2.2.2
+numpy>=1.26.0
+
+# Plotting and Visualization
+plotly>=5.20.0
+matplotlib>=3.8.0
+
+# Markdown and Document Conversion
+markdown2>=2.4.13
+
+
+# PDF Rendering and Print Support (if needed)
+weasyprint>=60.1
+
+# File Watching (for hot reload or monitoring folders)
+watchdog>=4.0.0
+
+# Optional – LLM Integration Support
+langchain>=0.1.0
+openai>=1.14.0
+
+# Miscellaneous
+requests>=2.31.0
+tqdm>=4.66.0
