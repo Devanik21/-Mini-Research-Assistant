@@ -37,7 +37,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from transformers import pipeline, AutoTokenizer, AutoModel
 import torch
-import openai
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.vectorstores import FAISS
