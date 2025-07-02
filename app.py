@@ -205,7 +205,8 @@ class AdvancedResearchAssistant:
             all_results.extend(web_results)
         
         if filters.get('include_wikipedia', True):
-            wiki_results = self.search_wikipedia(query, 5)
+            # Allocate a portion of max_results to Wikipedia, ensuring at least 1.
+            wiki_results = self.search_wikipedia(query, max(1, max_results // 4))
             all_results.extend(wiki_results)
         
         # Convert to ResearchResult objects
@@ -235,6 +236,22 @@ class AdvancedResearchAssistant:
             elif sentiment_type == 'neutral':
                 research_results = [r for r in research_results if -0.1 <= r.sentiment <= 0.1]
         
+        # Filter by date range if specified
+        if filters.get('date_range') and filters['date_range'] != 'All Time':
+            now = datetime.now()
+            time_delta = None
+            if filters['date_range'] == 'Last 24 Hours':
+                time_delta = timedelta(hours=24)
+            elif filters['date_range'] == 'Last Week':
+                time_delta = timedelta(days=7)
+            elif filters['date_range'] == 'Last Month':
+                time_delta = timedelta(days=30)
+            
+            if time_delta:
+                # NOTE: This filter relies on the timestamp assigned when the result is processed.
+                # For sources that don't provide a publication date, this reflects when the search was run.
+                research_results = [r for r in research_results if now - r.timestamp <= time_delta]
+
         # Sort by relevance score
         research_results.sort(key=lambda x: x.relevance_score, reverse=True)
         
