@@ -31,7 +31,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 from sklearn.metrics.pairwise import cosine_similarity
-import spacy
+#import spacy
 from wordcloud import WordCloud
 import seaborn as sns
 import matplotlib.pyplot as plt
