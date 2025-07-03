@@ -432,16 +432,79 @@ def main():
                 )
                 try:
                     from fpdf import FPDF
-                    import unicodedata
-                    pdf = FPDF()
+                    import markdown
+                    from bs4 import BeautifulSoup
+
+                    # Convert markdown to HTML
+                    html = markdown.markdown(ai_response)
+                    soup = BeautifulSoup(html, "html.parser")
+
+                    class PDF(FPDF):
+                        def header(self):
+                            pass
+                        def footer(self):
+                            pass
+
+                    pdf = PDF()
                     pdf.add_page()
                     pdf.set_auto_page_break(auto=True, margin=15)
                     pdf.set_font("Arial", size=12)
-                    # Normalize and encode lines to ascii, replacing non-ascii with '?'
-                    for line in ai_response.splitlines():
-                        safe_line = unicodedata.normalize("NFKD", line).encode("ascii", "replace").decode("ascii")
-                        pdf.multi_cell(0, 10, safe_line)
-                    pdf_output = pdf.output(dest='S').encode('latin1')
+
+                    def render_html_to_pdf(soup, pdf):
+                        for elem in soup.children:
+                            if elem.name == "h1":
+                                pdf.set_font("Arial", "B", 20)
+                                pdf.set_text_color(44, 62, 80)
+                                pdf.cell(0, 12, elem.get_text(), ln=1)
+                                pdf.set_font("Arial", size=12)
+                                pdf.set_text_color(0, 0, 0)
+                            elif elem.name == "h2":
+                                pdf.set_font("Arial", "B", 16)
+                                pdf.set_text_color(52, 152, 219)
+                                pdf.cell(0, 10, elem.get_text(), ln=1)
+                                pdf.set_font("Arial", size=12)
+                                pdf.set_text_color(0, 0, 0)
+                            elif elem.name == "h3":
+                                pdf.set_font("Arial", "B", 14)
+                                pdf.set_text_color(39, 174, 96)
+                                pdf.cell(0, 9, elem.get_text(), ln=1)
+                                pdf.set_font("Arial", size=12)
+                                pdf.set_text_color(0, 0, 0)
+                            elif elem.name == "h4":
+                                pdf.set_font("Arial", "B", 12)
+                                pdf.set_text_color(142, 68, 173)
+                                pdf.cell(0, 8, elem.get_text(), ln=1)
+                                pdf.set_font("Arial", size=12)
+                                pdf.set_text_color(0, 0, 0)
+                            elif elem.name == "ul":
+                                for li in elem.find_all("li", recursive=False):
+                                    pdf.cell(5)
+                                    pdf.multi_cell(0, 8, u"\u2022 " + li.get_text())
+                            elif elem.name == "ol":
+                                for idx, li in enumerate(elem.find_all("li", recursive=False), 1):
+                                    pdf.cell(5)
+                                    pdf.multi_cell(0, 8, f"{idx}. {li.get_text()}")
+                            elif elem.name == "strong" or elem.name == "b":
+                                pdf.set_font("Arial", "B", 12)
+                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.set_font("Arial", size=12)
+                            elif elem.name == "em" or elem.name == "i":
+                                pdf.set_font("Arial", "I", 12)
+                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.set_font("Arial", size=12)
+                            elif elem.name == "p":
+                                pdf.multi_cell(0, 8, elem.get_text())
+                            elif elem.name is None:
+                                # Plain text node
+                                text = elem.string
+                                if text and text.strip():
+                                    pdf.multi_cell(0, 8, text)
+                            else:
+                                # Fallback for other tags
+                                pdf.multi_cell(0, 8, elem.get_text())
+
+                    render_html_to_pdf(soup, pdf)
+                    pdf_output = pdf.output(dest='S').encode('latin1', errors='replace')
                     st.download_button(
                         label="⬇️ Export as PDF",
                         data=pdf_output,
@@ -449,7 +512,7 @@ def main():
                         mime="application/pdf"
                     )
                 except ImportError:
-                    st.info("Install `fpdf` package to enable PDF export: `pip install fpdf`")
+                    st.info("Install `fpdf`, `markdown`, and `beautifulsoup4` packages to enable styled PDF export: `pip install fpdf markdown beautifulsoup4`")
                 # Clear the response after displaying
                 if st.button("🔄 Regenerate Response", key="ai_regenerate"):
                     st.session_state["ai_response"] = ""
