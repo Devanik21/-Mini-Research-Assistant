@@ -264,7 +264,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
     # I've updated this to use a valid model and increased the token limit for more comprehensive responses.
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -288,7 +288,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
 
 def main():
     st.set_page_config(
-        page_title="Mini Research Assistant Pro",
+        page_title="🔬 Mini Research Assistant Pro",
         page_icon="🔬",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -394,8 +394,8 @@ def main():
     tab_ai, tab_research = st.tabs(["✨ AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## ✨ Gemini 2.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
+        st.markdown("## ✨ Gemini 1.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
@@ -684,27 +684,43 @@ def main():
                         
                         query = st.session_state.get('last_query', 'the user query')
 
-                        analysis_prompt = f"""
-You are a world-class research analyst. Your task is to synthesize and analyze the following research findings to produce a comprehensive report.
+                        analysis_prompt = f"""**Role:** You are a Senior Research Analyst at a top-tier global consulting firm. Your work is known for its incredible depth, clarity, and actionable insights. You are tasked with creating a definitive, exhaustive analysis based on a curated set of research data.
+
+**Objective:** Produce an extremely comprehensive and in-depth report analyzing the provided research findings. The report must be detailed, well-structured, and leave no stone unturned. The goal is to provide a complete and holistic understanding of the topic based *only* on the data provided.
 
 **Original Research Query:** "{query}"
 
-**Research Data:**
+**Provided Research Data:**
 ---
 {formatted_results}
 ---
 
-**Your Task:**
+**Mandatory Report Structure:**
 
-Based *only* on the provided research data, generate a detailed and well-structured report that includes the following sections:
+You must generate a detailed report with the following sections. Be expansive and thorough in each one.
 
-1.  **Executive Summary:** A brief, high-level overview of the most critical findings and conclusions.
-2.  **Key Themes & Insights:** Identify and elaborate on the recurring themes, patterns, and significant insights that emerge from the collective data.
-3.  **Sentiment Analysis:** Discuss the overall sentiment (positive, negative, neutral) of the research results. What does this sentiment suggest about the topic?
-4.  **Contradictions & Gaps:** Point out any conflicting information between sources or notable gaps in the provided research.
-5.  **Conclusion & Potential Next Steps:** Summarize the main takeaways and suggest potential areas for further investigation based on the analysis.
+1.  **Executive Summary:** A concise yet powerful overview of the most critical findings. This should be a stand-alone summary that captures the essence of the entire report.
 
-Please ensure your response is comprehensive, objective, and directly supported by the provided text snippets. Do not introduce outside information.
+2.  **Deep Dive: Key Themes & Insights:**
+    *   Identify 3-5 major recurring themes from the data.
+    *   For each theme, provide a detailed explanation.
+    *   Quote specific snippets or reference data points from the provided results to back up every insight.
+    *   Analyze the implications of these themes. What do they mean in the broader context of the query?
+
+3.  **Comprehensive Sentiment Analysis:**
+    *   Provide an overall assessment of the sentiment (positive, negative, neutral, mixed).
+    *   Go beyond a simple score. Discuss the nuances of the sentiment. Are there specific aspects that are viewed more positively or negatively?
+    *   Analyze the sentiment distribution across different sources. Are some sources more biased than others?
+
+4.  **Analysis of Contradictions, Inconsistencies, and Gaps:**
+    *   Meticulously identify any conflicting information or contradictions between the different research results.
+    *   Highlight what information is missing. What questions remain unanswered by this dataset? What are the clear gaps in the research provided?
+
+5.  **Strategic Conclusion & Actionable Recommendations:**
+    *   Summarize the most important conclusions drawn from the analysis.
+    *   Based on the analysis, propose a set of clear, actionable next steps or areas for further, more targeted investigation. What should the reader do with this information?
+
+**Final Instruction:** Your final output must be a long-form, detailed report. Do not be brief. Use the full token allocation if necessary to provide a truly comprehensive and valuable analysis. Your response should be written in professional, clear, and precise language.
 """
                         with st.spinner("🤖 The AI is analyzing your results... this may take a moment..."):
                             ai_analysis_response = gemini_flash_response(analysis_prompt, gemini_api_key)
