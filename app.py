@@ -263,21 +263,24 @@ class AdvancedResearchAssistant:
 def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    # I've updated this to use a valid model and increased the token limit for more comprehensive responses.
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 2048
+            "maxOutputTokens": 8192
         }
     }
     params = {"key": api_key}
     try:
         response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=30)
         if response.status_code == 200:
-            data = response.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            data = response.json() # This check handles cases where the API might return no candidates.
+            if "candidates" in data and data["candidates"]:
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            return f"Gemini API returned an empty response. Response: {data}"
         else:
             return f"Gemini API error: {response.status_code} - {response.text}"
     except Exception as e:
@@ -391,8 +394,8 @@ def main():
     tab_ai, tab_research = st.tabs(["✨ AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## ✨ Gemini 2.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
+        st.markdown("## ✨ Gemini 1.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
@@ -494,7 +497,7 @@ def main():
             results = st.session_state.last_results
             
             # Tabs for different views
-            tab1, tab2, tab3, tab4 = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export"])
+            tab1, tab2, tab3, tab4, tab_ai_analysis = st.tabs(["📋 Results", "📊 Analytics", "🏷️ Keywords", "📥 Export", "✨ AI Analysis"])
             
             with tab1:
                 st.subheader(f"🔍 Research Results for: '{st.session_state.last_query}'")
@@ -660,6 +663,54 @@ def main():
                 with col2:
                     st.metric("Average Relevance", f"{sum(r.relevance_score for r in results) / len(results):.3f}")
                     st.metric("Unique Sources", len(set(r.source for r in results)))
+            
+            with tab_ai_analysis:
+                st.subheader("✨ AI-Powered Research Analysis")
+                st.markdown("Use Gemini to generate a comprehensive summary and analysis of your research results.")
+
+                if not gemini_api_key:
+                    st.info("Please enter your Google Gemini API key in the sidebar to use this feature.")
+                else:
+                    if st.button("🤖 Generate Comprehensive Analysis", use_container_width=True, key="generate_ai_analysis"):
+                        # 1. Format the results into a prompt
+                        formatted_results = ""
+                        for i, result in enumerate(results[:25], 1): # Limit to top 25 to avoid overly long prompts
+                            formatted_results += f"Result {i}:\n"
+                            formatted_results += f"Title: {result.title}\n"
+                            formatted_results += f"Source: {result.source}\n"
+                            formatted_results += f"Snippet: {result.snippet}\n"
+                            formatted_results += f"Sentiment: {result.sentiment:.2f}\n"
+                            formatted_results += f"Relevance: {result.relevance_score:.2%}\n---\n"
+                        
+                        query = st.session_state.get('last_query', 'the user query')
+
+                        analysis_prompt = f"""
+You are a world-class research analyst. Your task is to synthesize and analyze the following research findings to produce a comprehensive report.
+
+**Original Research Query:** "{query}"
+
+**Research Data:**
+---
+{formatted_results}
+---
+
+**Your Task:**
+
+Based *only* on the provided research data, generate a detailed and well-structured report that includes the following sections:
+
+1.  **Executive Summary:** A brief, high-level overview of the most critical findings and conclusions.
+2.  **Key Themes & Insights:** Identify and elaborate on the recurring themes, patterns, and significant insights that emerge from the collective data.
+3.  **Sentiment Analysis:** Discuss the overall sentiment (positive, negative, neutral) of the research results. What does this sentiment suggest about the topic?
+4.  **Contradictions & Gaps:** Point out any conflicting information between sources or notable gaps in the provided research.
+5.  **Conclusion & Potential Next Steps:** Summarize the main takeaways and suggest potential areas for further investigation based on the analysis.
+
+Please ensure your response is comprehensive, objective, and directly supported by the provided text snippets. Do not introduce outside information.
+"""
+                        with st.spinner("🤖 The AI is analyzing your results... this may take a moment..."):
+                            ai_analysis_response = gemini_flash_response(analysis_prompt, gemini_api_key)
+                        
+                        st.markdown("### 🧠 AI Analysis Report")
+                        st.markdown(ai_analysis_response)
     
     # Footer
     st.markdown("---")
