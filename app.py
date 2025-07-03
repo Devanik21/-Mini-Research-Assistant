@@ -288,7 +288,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
 
 def main():
     st.set_page_config(
-        page_title="🔬 Mini Research Assistant Pro",
+        page_title="Mini Research Assistant Pro",
         page_icon="🔬",
         layout="wide",
         initial_sidebar_state="expanded"
