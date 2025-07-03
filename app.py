@@ -407,44 +407,50 @@ def main():
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
             ai_prompt = st.text_area("Enter your prompt for Gemini 2.5 Flash", "", height=120)
+            # Use session state to persist AI response
+            if "ai_response" not in st.session_state:
+                st.session_state["ai_response"] = ""
             if st.button("Generate AI Response", key="ai_generate"):
                 if ai_prompt.strip():
                     with st.spinner("Gemini is thinking..."):
                         ai_response = gemini_flash_response(ai_prompt, gemini_api_key)
-                    st.markdown("**Gemini Response:**")
-                    st.write(ai_response)
-                    # --- Export options for AI response ---
-                    if ai_response and isinstance(ai_response, str) and ai_response.strip():
-                        # Markdown export
-                        md_bytes = ai_response.encode("utf-8")
-                        st.download_button(
-                            label="⬇️ Export as Markdown",
-                            data=md_bytes,
-                            file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
-                            mime="text/markdown"
-                        )
-                        # PDF export
-                        try:
-                            from fpdf import FPDF
-                            pdf = FPDF()
-                            pdf.add_page()
-                            pdf.set_auto_page_break(auto=True, margin=15)
-                            pdf.set_font("Arial", size=12)
-                            # Split response into lines for PDF
-                            for line in ai_response.splitlines():
-                                pdf.multi_cell(0, 10, line)
-                            pdf_output = pdf.output(dest='S').encode('latin1')
-                            st.download_button(
-                                label="⬇️ Export as PDF",
-                                data=pdf_output,
-                                file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                                mime="application/pdf"
-                            )
-                        except ImportError:
-                            st.info("Install `fpdf` package to enable PDF export: `pip install fpdf`")
+                    st.session_state["ai_response"] = ai_response
                 else:
                     st.warning("Please enter a prompt for Gemini.")
-
+            # Display the response if available
+            ai_response = st.session_state.get("ai_response", "")
+            if ai_response and isinstance(ai_response, str) and ai_response.strip():
+                st.markdown("**Gemini Response:**")
+                st.write(ai_response)
+                # --- Export options for AI response ---
+                md_bytes = ai_response.encode("utf-8")
+                st.download_button(
+                    label="⬇️ Export as Markdown",
+                    data=md_bytes,
+                    file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown"
+                )
+                try:
+                    from fpdf import FPDF
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_auto_page_break(auto=True, margin=15)
+                    pdf.set_font("Arial", size=12)
+                    for line in ai_response.splitlines():
+                        pdf.multi_cell(0, 10, line)
+                    pdf_output = pdf.output(dest='S').encode('latin1')
+                    st.download_button(
+                        label="⬇️ Export as PDF",
+                        data=pdf_output,
+                        file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                        mime="application/pdf"
+                    )
+                except ImportError:
+                    st.info("Install `fpdf` package to enable PDF export: `pip install fpdf`")
+                # Clear the response after displaying
+                if st.button("🔄 Regenerate Response", key="ai_regenerate"):
+                    st.session_state["ai_response"] = ""
+    
     with tab_research:
         st.subheader("🔬 Research Tool")
         
