@@ -3,7 +3,7 @@ requests
 pandas
 plotly
 fpdf
-markdown2
+markdown
 textblob
 google-generativeai
 nltk
