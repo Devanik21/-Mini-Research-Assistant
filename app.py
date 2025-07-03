@@ -261,9 +261,9 @@ class AdvancedResearchAssistant:
         return research_results[:max_results]
 
 def gemini_flash_response(prompt: str, api_key: str) -> str:
-    """Get a response from Gemini 2.5 Flash for a given prompt."""
+    """Get a response from Gemini 1.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -312,18 +312,21 @@ def main():
         margin: 0.5rem 0;
     }
     .result-card {
-        border: 1px solid #e0e0e0;
+        border: 1px solid #23272f;
         border-radius: 10px;
         padding: 1rem;
         margin: 1rem 0;
-        background: #f9f9f9;
+        background: #23272f;
+        color: #f1f1f1;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    .sentiment-positive { color: #28a745; }
-    .sentiment-negative { color: #dc3545; }
-    .sentiment-neutral { color: #6c757d; }
-    .relevance-high { background-color: #d4edda; }
-    .relevance-medium { background-color: #fff3cd; }
-    .relevance-low { background-color: #f8d7da; }
+    .sentiment-positive { color: #28fa7a; }
+    .sentiment-negative { color: #ff5c8a; }
+    .sentiment-neutral { color: #b0b3b8; }
+    .relevance-high { background-color: #22332a !important; }
+    .relevance-medium { background-color: #2a2e22 !important; }
+    .relevance-low { background-color: #332222 !important; }
+    a { color: #7ecbff; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -388,12 +391,12 @@ def main():
     tab_ai, tab_research = st.tabs(["🤖 AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## 🤖 Gemini 2.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
+        st.markdown("## 🤖 Gemini 1.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
-            ai_prompt = st.text_area("Enter your prompt for Gemini 2.5 Flash", "", height=120)
+            ai_prompt = st.text_area("Enter your prompt for Gemini 1.5 Flash", "", height=120)
             if st.button("Generate AI Response", key="ai_generate"):
                 if ai_prompt.strip():
                     with st.spinner("Gemini is thinking..."):
