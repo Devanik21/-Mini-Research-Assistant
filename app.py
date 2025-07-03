@@ -393,6 +393,48 @@ async def main():
         st.subheader("🛠️ Productivity Tools")
         
         with st.expander("Standalone Tools", expanded=False):
+            # --- Word & Character Counter ---
+            st.markdown("##### Word & Character Counter")
+            counter_text = st.text_area("Paste text to count words, characters, and sentences:", height=100, key="counter_input")
+            if st.button("🔢 Count", key="count_button"):
+                if counter_text.strip():
+                    num_words = len(counter_text.split())
+                    num_chars = len(counter_text)
+                    num_chars_no_space = len(counter_text.replace(" ", ""))
+                    num_sentences = len(re.findall(r'[.!?]+', counter_text))
+                    st.success(
+                        f"**Words:** {num_words}\n\n"
+                        f"**Characters (with spaces):** {num_chars}\n\n"
+                        f"**Characters (no spaces):** {num_chars_no_space}\n\n"
+                        f"**Sentences:** {num_sentences}"
+                    )
+                else:
+                    st.info("Please paste some text to count.")
+
+            st.markdown("---")
+            # --- Text Case Converter ---
+            st.markdown("##### Text Case Converter")
+            case_text = st.text_area("Paste text to convert case:", height=100, key="case_input")
+            case_option = st.selectbox("Choose case", ["UPPERCASE", "lowercase", "Title Case", "Sentence case"], key="case_option")
+            if st.button("🔤 Convert Case", key="convert_case_button"):
+                if case_text.strip():
+                    if case_option == "UPPERCASE":
+                        converted = case_text.upper()
+                    elif case_option == "lowercase":
+                        converted = case_text.lower()
+                    elif case_option == "Title Case":
+                        converted = case_text.title()
+                    elif case_option == "Sentence case":
+                        # Capitalize first letter of each sentence
+                        sentences = re.split('([.!?] *)', case_text)
+                        converted = ''.join([s.capitalize() for s in sentences])
+                    st.success("**Converted Text:**")
+                    st.code(converted, language="text")
+                else:
+                    st.info("Please paste some text to convert.")
+
+            st.markdown("---")
+            # --- Analyze Sentiment ---
             st.markdown("##### Analyze Sentiment")
             sentiment_text = st.text_area("Paste text to analyze its sentiment:", height=100, key="sentiment_input")
             if st.button("😊 Analyze Sentiment", key="analyze_sentiment_button"):
@@ -404,6 +446,7 @@ async def main():
                     st.warning("Please paste some text to analyze.")
 
             st.markdown("---")
+            # --- Extract Keywords ---
             st.markdown("##### Extract Keywords")
             keyword_text = st.text_area("Paste text to extract keywords from:", height=100, key="keyword_input")
             if st.button("🏷️ Extract Keywords", key="extract_keywords_button"):
@@ -421,7 +464,7 @@ async def main():
             if not st.session_state.gemini_api_key:
                 st.info("Enter your Gemini API key above to use these tools.")
             else:
-                # Example: Content Summarizer
+                # --- Content Summarizer (existing) ---
                 st.markdown("##### Content Summarizer")
                 summarizer_text = st.text_area("Paste text to summarize:", height=100, key="summarizer_input")
                 if st.button("✍️ Summarize", key="summarize_button"):
@@ -433,6 +476,157 @@ async def main():
                         st.markdown(summary)
                     else:
                         st.warning("Please paste some text to summarize.")
+
+                st.markdown("---")
+                # --- Technical Text Simplifier ---
+                st.markdown("##### Technical Text Simplifier")
+                simplify_text = st.text_area("Paste technical text to simplify:", height=100, key="simplify_input")
+                if st.button("🧑‍🎓 Simplify Text", key="simplify_button"):
+                    if simplify_text.strip():
+                        prompt = (
+                            "Simplify the following technical text so that a non-expert can easily understand it. "
+                            "Use clear, plain language and explain any jargon:\n\n"
+                            f"{simplify_text}"
+                        )
+                        with st.spinner("AI is simplifying..."):
+                            simplified = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Simplified Text:**")
+                        st.markdown(simplified)
+                    else:
+                        st.warning("Please paste technical text to simplify.")
+
+                st.markdown("---")
+                # --- Email Drafter ---
+                st.markdown("##### Email Drafter")
+                email_points = st.text_area("Enter key points for your email (one per line):", height=100, key="email_points_input")
+                email_tone = st.selectbox("Email Tone", ["Professional", "Friendly", "Concise", "Persuasive"], key="email_tone")
+                if st.button("📧 Draft Email", key="draft_email_button"):
+                    if email_points.strip():
+                        prompt = (
+                            f"Write a {email_tone.lower()} email using these key points:\n"
+                            f"{email_points}\n\n"
+                            "Format as a complete email with greeting and closing."
+                        )
+                        with st.spinner("AI is drafting your email..."):
+                            email = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Drafted Email:**")
+                        st.markdown(email)
+                    else:
+                        st.warning("Please enter key points for your email.")
+
+                st.markdown("---")
+                # --- Social Media Post Generator ---
+                st.markdown("##### Social Media Post Generator")
+                sm_topic = st.text_area("Describe your topic or announcement:", height=80, key="sm_topic_input")
+                sm_platform = st.selectbox("Platform", ["Twitter/X", "LinkedIn", "Facebook", "Instagram"], key="sm_platform")
+                if st.button("📱 Generate Post", key="generate_post_button"):
+                    if sm_topic.strip():
+                        prompt = (
+                            f"Write an engaging {sm_platform} post about:\n"
+                            f"{sm_topic}\n\n"
+                            "Make it catchy and suitable for the platform."
+                        )
+                        with st.spinner("AI is generating your post..."):
+                            post = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Generated Post:**")
+                        st.markdown(post)
+                    else:
+                        st.warning("Please describe your topic.")
+
+                st.markdown("---")
+                # --- Code Explainer ---
+                st.markdown("##### Code Explainer")
+                code_snippet = st.text_area("Paste code to explain:", height=100, key="code_explain_input")
+                code_lang = st.text_input("Programming Language (optional)", key="code_lang_input")
+                if st.button("💡 Explain Code", key="explain_code_button"):
+                    if code_snippet.strip():
+                        prompt = (
+                            f"Explain the following code in plain English. "
+                            f"{'The language is ' + code_lang + '.' if code_lang else ''}\n\n"
+                            f"{code_snippet}"
+                        )
+                        with st.spinner("AI is explaining the code..."):
+                            explanation = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Code Explanation:**")
+                        st.markdown(explanation)
+                    else:
+                        st.warning("Please paste code to explain.")
+
+                st.markdown("---")
+                # --- Translation Tool ---
+                st.markdown("##### Translation Tool")
+                translate_text = st.text_area("Paste text to translate:", height=80, key="translate_input")
+                translate_lang = st.selectbox(
+                    "Translate to",
+                    ["Spanish", "French", "German", "Chinese", "Hindi", "Arabic", "Russian", "Portuguese", "Japanese", "Korean"],
+                    key="translate_lang"
+                )
+                if st.button("🌐 Translate", key="translate_button"):
+                    if translate_text.strip():
+                        prompt = (
+                            f"Translate the following text to {translate_lang}:\n\n"
+                            f"{translate_text}"
+                        )
+                        with st.spinner("AI is translating..."):
+                            translation = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success(f"**Translation ({translate_lang}):**")
+                        st.markdown(translation)
+                    else:
+                        st.warning("Please paste text to translate.")
+
+                st.markdown("---")
+                # --- Idea Generator ---
+                st.markdown("##### Idea Generator")
+                idea_topic = st.text_area("Describe your topic or challenge:", height=80, key="idea_input")
+                if st.button("💡 Generate Ideas", key="generate_ideas_button"):
+                    if idea_topic.strip():
+                        prompt = (
+                            f"Brainstorm a list of creative, practical ideas for the following topic or challenge:\n\n"
+                            f"{idea_topic}\n\n"
+                            "Provide at least 5 ideas."
+                        )
+                        with st.spinner("AI is generating ideas..."):
+                            ideas = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Generated Ideas:**")
+                        st.markdown(ideas)
+                    else:
+                        st.warning("Please describe your topic or challenge.")
+
+                st.markdown("---")
+                # --- Proofreader & Grammar Checker ---
+                st.markdown("##### Proofreader & Grammar Checker")
+                proof_text = st.text_area("Paste text to proofread:", height=100, key="proof_input")
+                if st.button("📝 Proofread", key="proofread_button"):
+                    if proof_text.strip():
+                        prompt = (
+                            "Proofread the following text for spelling, grammar, and punctuation errors. "
+                            "Correct any mistakes and provide the improved version:\n\n"
+                            f"{proof_text}"
+                        )
+                        with st.spinner("AI is proofreading..."):
+                            proofed = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Proofread Text:**")
+                        st.markdown(proofed)
+                    else:
+                        st.warning("Please paste text to proofread.")
+
+                st.markdown("---")
+                # --- Pros and Cons Lister ---
+                st.markdown("##### Pros and Cons Lister")
+                proscons_topic = st.text_area("Enter a topic or decision to analyze:", height=80, key="proscons_input")
+                if st.button("⚖️ List Pros & Cons", key="proscons_button"):
+                    if proscons_topic.strip():
+                        prompt = (
+                            f"List the main pros and cons of the following topic or decision. "
+                            f"Present them in a clear, balanced format:\n\n"
+                            f"{proscons_topic}"
+                        )
+                        with st.spinner("AI is analyzing..."):
+                            proscons = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Pros & Cons:**")
+                        st.markdown(proscons)
+                    else:
+                        st.warning("Please enter a topic or decision.")
 
         if st.button("📊 Analytics Dashboard"):
             st.session_state.show_analytics = True
