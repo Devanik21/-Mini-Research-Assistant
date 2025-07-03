@@ -413,6 +413,35 @@ def main():
                         ai_response = gemini_flash_response(ai_prompt, gemini_api_key)
                     st.markdown("**Gemini Response:**")
                     st.write(ai_response)
+                    # --- Export options for AI response ---
+                    if ai_response and isinstance(ai_response, str) and ai_response.strip():
+                        # Markdown export
+                        md_bytes = ai_response.encode("utf-8")
+                        st.download_button(
+                            label="⬇️ Export as Markdown",
+                            data=md_bytes,
+                            file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                            mime="text/markdown"
+                        )
+                        # PDF export
+                        try:
+                            from fpdf import FPDF
+                            pdf = FPDF()
+                            pdf.add_page()
+                            pdf.set_auto_page_break(auto=True, margin=15)
+                            pdf.set_font("Arial", size=12)
+                            # Split response into lines for PDF
+                            for line in ai_response.splitlines():
+                                pdf.multi_cell(0, 10, line)
+                            pdf_output = pdf.output(dest='S').encode('latin1')
+                            st.download_button(
+                                label="⬇️ Export as PDF",
+                                data=pdf_output,
+                                file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                                mime="application/pdf"
+                            )
+                        except ImportError:
+                            st.info("Install `fpdf` package to enable PDF export: `pip install fpdf`")
                 else:
                     st.warning("Please enter a prompt for Gemini.")
 
