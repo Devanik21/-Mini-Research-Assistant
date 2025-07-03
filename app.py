@@ -1075,6 +1075,280 @@ You must generate a detailed report with the following sections. Be expansive an
                         st.markdown("### 🧠 AI Analysis Report")
                         st.markdown(ai_analysis_response)
     
+    # --- New Tab: 20+ Mini Tools ---
+    tab_minitools, = st.tabs(["🧰 Mini Tools"])
+    with tab_minitools:
+        st.header("🧰 20+ Mini Productivity Tools")
+        st.info("A collection of handy utilities for productivity, text, and quick calculations.")
+
+        # 1. Random Password Generator
+        st.subheader("🔑 Random Password Generator")
+        pw_length = st.slider("Password Length", 8, 64, 16, key="pw_length")
+        if st.button("Generate Password", key="gen_pw"):
+            import string, random
+            chars = string.ascii_letters + string.digits + string.punctuation
+            password = ''.join(random.choices(chars, k=pw_length))
+            st.code(password, language="text")
+
+        # 2. URL Encoder/Decoder
+        st.subheader("🌐 URL Encoder/Decoder")
+        url_text = st.text_input("Enter text or URL", key="url_text")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Encode", key="url_encode"):
+                st.code(quote_plus(url_text), language="text")
+        with col2:
+            if st.button("Decode", key="url_decode"):
+                from urllib.parse import unquote_plus
+                st.code(unquote_plus(url_text), language="text")
+
+        # 3. Base64 Encoder/Decoder
+        st.subheader("🔢 Base64 Encoder/Decoder")
+        base64_text = st.text_input("Enter text", key="base64_text")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Encode Base64", key="b64_encode"):
+                import base64
+                st.code(base64.b64encode(base64_text.encode()).decode(), language="text")
+        with col2:
+            if st.button("Decode Base64", key="b64_decode"):
+                import base64
+                try:
+                    st.code(base64.b64decode(base64_text).decode(), language="text")
+                except Exception:
+                    st.warning("Invalid Base64 input.")
+
+        # 4. QR Code Generator
+        st.subheader("📱 QR Code Generator")
+        qr_text = st.text_input("Text/URL for QR Code", key="qr_text")
+        if st.button("Generate QR Code", key="qr_gen"):
+            import qrcode
+            import io
+            buf = io.BytesIO()
+            img = qrcode.make(qr_text)
+            img.save(buf, format="PNG")
+            st.image(buf.getvalue(), caption="QR Code", use_column_width=False)
+
+        # 5. Unix Timestamp Converter
+        st.subheader("⏱️ Unix Timestamp Converter")
+        ts_col1, ts_col2 = st.columns(2)
+        with ts_col1:
+            dt = st.date_input("Pick a date", key="ts_date")
+            tm = st.time_input("Pick a time", key="ts_time")
+            if st.button("To Timestamp", key="to_ts"):
+                dt_obj = datetime.combine(dt, tm)
+                st.code(int(dt_obj.timestamp()), language="text")
+        with ts_col2:
+            ts_input = st.text_input("Enter Unix timestamp", key="ts_input")
+            if st.button("To Date/Time", key="from_ts"):
+                try:
+                    dt_obj = datetime.fromtimestamp(int(ts_input))
+                    st.code(dt_obj.strftime("%Y-%m-%d %H:%M:%S"), language="text")
+                except Exception:
+                    st.warning("Invalid timestamp.")
+
+        # 6. JSON Formatter & Validator
+        st.subheader("🧾 JSON Formatter & Validator")
+        json_input = st.text_area("Paste JSON here", key="json_input")
+        if st.button("Format JSON", key="json_fmt"):
+            try:
+                parsed = json.loads(json_input)
+                st.code(json.dumps(parsed, indent=2), language="json")
+                st.success("Valid JSON!")
+            except Exception as e:
+                st.error(f"Invalid JSON: {e}")
+
+        # 7. Markdown to HTML Converter
+        st.subheader("📝 Markdown to HTML Converter")
+        md_input = st.text_area("Paste Markdown here", key="md_input")
+        if st.button("Convert to HTML", key="md2html"):
+            try:
+                import markdown
+                html = markdown.markdown(md_input)
+                st.code(html, language="html")
+                st.markdown(html, unsafe_allow_html=True)
+            except Exception:
+                st.warning("Install the 'markdown' package for this tool.")
+
+        # 8. Text Diff Checker
+        st.subheader("🔍 Text Diff Checker")
+        diff1 = st.text_area("Text 1", key="diff1")
+        diff2 = st.text_area("Text 2", key="diff2")
+        if st.button("Show Diff", key="show_diff"):
+            import difflib
+            diff = difflib.unified_diff(diff1.splitlines(), diff2.splitlines(), lineterm="")
+            st.code('\n'.join(diff), language="diff")
+
+        # 9. Palindrome Checker
+        st.subheader("🔄 Palindrome Checker")
+        pal_text = st.text_input("Enter text", key="pal_text")
+        if st.button("Check Palindrome", key="pal_check"):
+            cleaned = re.sub(r'[^a-zA-Z0-9]', '', pal_text.lower())
+            is_pal = cleaned == cleaned[::-1]
+            st.success("Palindrome!" if is_pal else "Not a palindrome.")
+
+        # 10. Anagram Finder
+        st.subheader("🔀 Anagram Finder")
+        ana_word = st.text_input("Enter word", key="ana_word")
+        ana_letters = st.text_input("Enter letters", key="ana_letters")
+        if st.button("Find Anagrams", key="find_ana"):
+            from itertools import permutations
+            perms = set([''.join(p) for p in permutations(ana_letters, len(ana_word))])
+            matches = [w for w in perms if w.lower() == ana_word.lower()]
+            st.write("Anagrams found:" if matches else "No anagrams found.")
+            for w in matches:
+                st.code(w, language="text")
+
+        # 11. Text Reverser
+        st.subheader("↩️ Text Reverser")
+        rev_text = st.text_input("Enter text to reverse", key="rev_text")
+        if st.button("Reverse Text", key="reverse_text"):
+            st.code(rev_text[::-1], language="text")
+
+        # 12. Character Frequency Counter
+        st.subheader("🔢 Character Frequency Counter")
+        freq_text = st.text_area("Paste text", key="freq_text")
+        if st.button("Count Characters", key="count_chars"):
+            freq = Counter(freq_text)
+            st.write(dict(freq))
+
+        # 13. Number to Words Converter
+        st.subheader("🔢 Number to Words Converter")
+        num_input = st.text_input("Enter a number", key="num2words")
+        if st.button("Convert to Words", key="num2words_btn"):
+            try:
+                from num2words import num2words
+                st.code(num2words(int(num_input)), language="text")
+            except Exception:
+                st.warning("Install the 'num2words' package for this tool.")
+
+        # 14. Roman Numeral Converter
+        st.subheader("🏛️ Roman Numeral Converter")
+        roman_num = st.text_input("Enter integer (1-3999)", key="roman_num")
+        if st.button("To Roman", key="to_roman"):
+            def int_to_roman(num):
+                val = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1]
+                syb = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"]
+                roman = ''
+                i = 0
+                while num > 0:
+                    for _ in range(num // val[i]):
+                        roman += syb[i]
+                        num -= val[i]
+                    i += 1
+                return roman
+            try:
+                n = int(roman_num)
+                if 1 <= n <= 3999:
+                    st.code(int_to_roman(n), language="text")
+                else:
+                    st.warning("Enter a number between 1 and 3999.")
+            except Exception:
+                st.warning("Invalid input.")
+
+        # 15. SHA256 Hash Generator
+        st.subheader("🔒 SHA256 Hash Generator")
+        hash_text = st.text_input("Enter text to hash", key="hash_text")
+        if st.button("Generate SHA256", key="sha256_btn"):
+            st.code(hashlib.sha256(hash_text.encode()).hexdigest(), language="text")
+
+        # 16. Random Number Generator
+        st.subheader("🎲 Random Number Generator")
+        rand_min = st.number_input("Min", value=1, key="rand_min")
+        rand_max = st.number_input("Max", value=100, key="rand_max")
+        if st.button("Generate Random Number", key="rand_btn"):
+            import random
+            if rand_min < rand_max:
+                st.code(str(random.randint(int(rand_min), int(rand_max))), language="text")
+            else:
+                st.warning("Min should be less than Max.")
+
+        # 17. Temperature Converter
+        st.subheader("🌡️ Temperature Converter")
+        temp_val = st.number_input("Temperature", key="temp_val")
+        temp_unit = st.selectbox("From", ["Celsius", "Fahrenheit", "Kelvin"], key="temp_unit")
+        temp_to = st.selectbox("To", ["Celsius", "Fahrenheit", "Kelvin"], key="temp_to")
+        if st.button("Convert Temperature", key="temp_conv"):
+            def convert_temp(val, from_u, to_u):
+                if from_u == to_u:
+                    return val
+                if from_u == "Celsius":
+                    if to_u == "Fahrenheit":
+                        return val * 9/5 + 32
+                    elif to_u == "Kelvin":
+                        return val + 273.15
+                elif from_u == "Fahrenheit":
+                    if to_u == "Celsius":
+                        return (val - 32) * 5/9
+                    elif to_u == "Kelvin":
+                        return (val - 32) * 5/9 + 273.15
+                elif from_u == "Kelvin":
+                    if to_u == "Celsius":
+                        return val - 273.15
+                    elif to_u == "Fahrenheit":
+                        return (val - 273.15) * 9/5 + 32
+            st.code(f"{convert_temp(temp_val, temp_unit, temp_to):.2f} {temp_to}")
+
+        # 18. Simple Calculator
+        st.subheader("🧮 Simple Calculator")
+        calc_expr = st.text_input("Enter expression (e.g., 2+2*3)", key="calc_expr")
+        if st.button("Calculate", key="calc_btn"):
+            try:
+                st.code(str(eval(calc_expr, {"__builtins__": {}})), language="text")
+            except Exception:
+                st.warning("Invalid expression.")
+
+        # 19. Text Case Shuffler
+        st.subheader("🔀 Text Case Shuffler")
+        shuffle_text = st.text_input("Enter text", key="shuffle_text")
+        if st.button("Shuffle Case", key="shuffle_case_btn"):
+            import random
+            st.code(''.join(c.upper() if random.random() > 0.5 else c.lower() for c in shuffle_text), language="text")
+
+        # 20. Remove Duplicate Lines
+        st.subheader("🧹 Remove Duplicate Lines")
+        dup_text = st.text_area("Paste text (one item per line)", key="dup_text")
+        if st.button("Remove Duplicates", key="remove_dup_btn"):
+            lines = dup_text.splitlines()
+            unique = list(dict.fromkeys(lines))
+            st.code('\n'.join(unique), language="text")
+
+        # 21. Word Frequency Counter
+        st.subheader("📊 Word Frequency Counter")
+        wf_text = st.text_area("Paste text", key="wf_text")
+        if st.button("Count Words", key="wf_btn"):
+            words = re.findall(r'\w+', wf_text.lower())
+            freq = Counter(words)
+            st.write(dict(freq))
+
+        # 22. Remove Extra Spaces
+        st.subheader("🚫 Remove Extra Spaces")
+        space_text = st.text_area("Paste text", key="space_text")
+        if st.button("Remove Spaces", key="remove_space_btn"):
+            st.code(' '.join(space_text.split()), language="text")
+
+        # 23. Find & Replace Tool
+        st.subheader("🔎 Find & Replace")
+        fr_text = st.text_area("Paste text", key="fr_text")
+        find_str = st.text_input("Find", key="find_str")
+        replace_str = st.text_input("Replace with", key="replace_str")
+        if st.button("Replace", key="replace_btn"):
+            st.code(fr_text.replace(find_str, replace_str), language="text")
+
+        # 24. Sentence Splitter
+        st.subheader("✂️ Sentence Splitter")
+        sent_text = st.text_area("Paste text", key="sent_text")
+        if st.button("Split Sentences", key="split_sent_btn"):
+            sents = sent_tokenize(sent_text)
+            for s in sents:
+                st.write(s)
+
+        # 25. Text to ASCII Codes
+        st.subheader("🔡 Text to ASCII Codes")
+        ascii_text = st.text_input("Enter text", key="ascii_text")
+        if st.button("To ASCII", key="ascii_btn"):
+            st.code(' '.join(str(ord(c)) for c in ascii_text), language="text")
+
     # Footer
     st.markdown("---")
     st.markdown("""
