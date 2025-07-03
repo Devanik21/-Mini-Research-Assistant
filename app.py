@@ -282,7 +282,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
     }
     params = {"key": api_key}
     try:
-        response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=30)
+        response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=90)
         if response.status_code == 200:
             data = response.json()
             if "candidates" in data and data["candidates"]:
