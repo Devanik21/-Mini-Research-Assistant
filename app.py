@@ -263,14 +263,21 @@ class AdvancedResearchAssistant:
 def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     headers = {"Content-Type": "application/json"}
+    # Add strict comprehensive instruction to the prompt
+    comprehensive_instruction = (
+        "INSTRUCTION: You must generate the most comprehensive, exhaustive, and detailed answer possible like the deep research. "
+        "Use the full token allocation (up to 8192 tokens). Do not be brief. "
+        "Your response must be long-form, deeply analytical, and cover every aspect of the topic. "
+        "Be meticulous, thorough, and leave no relevant detail unexplored.\n\n"
+    )
+    full_prompt = comprehensive_instruction + prompt
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": [{"text": full_prompt}]}],
         "generationConfig": {
             "temperature": 0.7,
-            "maxOutputTokens": 8192,
-            "minOutputTokens": 8192
+            "maxOutputTokens": 8192,  # This is the maximum allowed
         }
     }
     params = {"key": api_key}
@@ -394,8 +401,8 @@ def main():
     tab_ai, tab_research = st.tabs(["✨ AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## ✨ Gemini 1.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
+        st.markdown("## ✨ Gemini 2.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
