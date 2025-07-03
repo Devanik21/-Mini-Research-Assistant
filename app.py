@@ -394,6 +394,42 @@ def main():
         
         selected_template = st.selectbox("Choose Template", ["Custom"] + list(templates.keys()))
         
+        # --- NEW SECTION: Productivity Tools ---
+        st.subheader("🛠️ Productivity Tools")
+        tool_options = [
+            "Select a tool...",
+            "Technical Text Simplifier",
+            "Content Summarizer",
+            "Email Drafter",
+            "Standalone Sentiment Analyzer",
+            "Standalone Keyword Extractor",
+            "Social Media Post Generator",
+            "Code Explainer",
+            "Translation Tool",
+            "Idea Generator",
+            "Proofreader & Grammar Checker"
+        ]
+        selected_tool = st.selectbox("Choose a tool", tool_options, key="selected_tool")
+
+        # Tool implementations
+        if selected_tool != "Select a tool...":
+            # Handle tools that don't need an API key first
+            if selected_tool == "Standalone Sentiment Analyzer":
+                st.markdown("##### Analyze Sentiment")
+                sentiment_text = st.text_area("Paste text to analyze its sentiment:", height=150, key="sentiment_input")
+                if st.button("😊 Analyze Sentiment"):
+                    if sentiment_text.strip():
+                        sentiment = ra.analyze_sentiment(sentiment_text)
+                        sentiment_label = "Positive" if sentiment > 0.1 else "Negative" if sentiment < -0.1 else "Neutral"
+                        st.session_state.tool_output = f"**Sentiment Score:** `{sentiment:.3f}`\n\n**Overall Sentiment:** {sentiment_label}"
+                    else:
+                        st.warning("Please paste some text to analyze.")
+
+            elif selected_tool == "Standalone Keyword Extractor":
+                st.markdown("##### Extract Keywords")
+                keyword_text = st.text_area("Paste text to extract keywords from:", height=150, key="keyword_input")
+                if st.button("🏷️ Extract Keywords"):
+
         if st.button("📊 Analytics Dashboard"):
             st.session_state.show_analytics = True
     
