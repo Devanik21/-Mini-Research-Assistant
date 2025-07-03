@@ -2,6 +2,7 @@ streamlit
 requests
 pandas
 plotly
+fpdf 
 textblob
 google-generativeai
 nltk
