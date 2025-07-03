@@ -290,7 +290,7 @@ async def gemini_flash_response(prompt: str, api_key: str) -> str:
 
 async def main():
     st.set_page_config(
-        page_title="🔬 Mini Research Assistant Pro",
+        page_title="Mini Research Assistant Pro",
         page_icon="🔬",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -1339,9 +1339,17 @@ You must generate a detailed report with the following sections. Be expansive an
         st.subheader("✂️ Sentence Splitter")
         sent_text = st.text_area("Paste text", key="sent_text")
         if st.button("Split Sentences", key="split_sent_btn"):
-            sents = sent_tokenize(sent_text)
-            for s in sents:
-                st.write(s)
+            try:
+                # Try to use NLTK's sent_tokenize, fallback to regex if punkt is missing
+                try:
+                    sents = sent_tokenize(sent_text)
+                except LookupError:
+                    import re
+                    sents = re.split(r'(?<=[.!?])\s+', sent_text)
+                for s in sents:
+                    st.write(s)
+            except Exception as e:
+                st.warning(f"Could not split sentences: {e}")
 
         # 25. Text to ASCII Codes
         st.subheader("🔡 Text to ASCII Codes")
