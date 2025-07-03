@@ -261,9 +261,9 @@ class AdvancedResearchAssistant:
         return research_results[:max_results]
 
 def gemini_flash_response(prompt: str, api_key: str) -> str:
-    """Get a response from Gemini 1.5 Flash for a given prompt."""
+    """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -391,12 +391,12 @@ def main():
     tab_ai, tab_research = st.tabs(["🤖 AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## 🤖 Gemini 1.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
+        st.markdown("## 🤖 Gemini 2.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
-            ai_prompt = st.text_area("Enter your prompt for Gemini 1.5 Flash", "", height=120)
+            ai_prompt = st.text_area("Enter your prompt for Gemini 2.5 Flash", "", height=120)
             if st.button("Generate AI Response", key="ai_generate"):
                 if ai_prompt.strip():
                     with st.spinner("Gemini is thinking..."):
