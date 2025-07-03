@@ -264,7 +264,7 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
     # I've updated this to use a valid model and increased the token limit for more comprehensive responses.
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
@@ -394,8 +394,8 @@ def main():
     tab_ai, tab_research = st.tabs(["✨ AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## ✨ Gemini 1.5 Flash AI Assistant")
-        st.markdown("Ask anything! This space is powered by Gemini 1.5 Flash and is independent of the research tool.")
+        st.markdown("## ✨ Gemini 2.5 Flash AI Assistant")
+        st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
