@@ -2,11 +2,11 @@ streamlit
 requests
 pandas
 plotly
-fpdf 
-markdown2 
+fpdf
+markdown2
 textblob
 google-generativeai
 nltk
 yfinance
 aiohttp
-# Gemini API is accessed via HTTP, no extra package needed
+beautifulsoup4
