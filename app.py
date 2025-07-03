@@ -479,7 +479,8 @@ def main():
                             elif elem.name == "ul":
                                 for li in elem.find_all("li", recursive=False):
                                     pdf.cell(5)
-                                    pdf.multi_cell(0, 8, u"\u2022 " + li.get_text())
+                                    # Use a plain ASCII dash instead of Unicode bullet
+                                    pdf.multi_cell(0, 8, "- " + li.get_text())
                             elif elem.name == "ol":
                                 for idx, li in enumerate(elem.find_all("li", recursive=False), 1):
                                     pdf.cell(5)
