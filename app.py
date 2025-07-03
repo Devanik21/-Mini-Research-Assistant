@@ -8,13 +8,9 @@ import plotly.graph_objects as go
 from textblob import TextBlob
 import re
 from urllib.parse import quote_plus
-import base64
-from io import BytesIO
 import asyncio
 import aiohttp
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
-import time
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 import nltk
@@ -82,114 +78,104 @@ class AdvancedResearchAssistant:
         intersection = len(query_words.intersection(content_words))
         return intersection / len(query_words)
     
-    def search_duckduckgo(self, query: str, num_results: int = 10) -> List[Dict]:
+    async def search_duckduckgo(self, session: aiohttp.ClientSession, query: str, num_results: int = 10) -> List[Dict]:
         """Search using DuckDuckGo API"""
         try:
             url = "https://api.duckduckgo.com/"
-            params = {
-                'q': query,
-                'format': 'json',
-                'no_html': '1',
-                'skip_disambig': '1'
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                results = []
-                
-                # Get instant answer if available
-                if data.get('Abstract'):
-                    results.append({
-                        'title': data.get('AbstractText', 'DuckDuckGo Instant Answer'),
-                        'url': data.get('AbstractURL', ''),
-                        'snippet': data.get('Abstract', ''),
-                        'source': 'DuckDuckGo Instant'
-                    })
-                
-                # Get related topics
-                for topic in data.get('RelatedTopics', [])[:num_results]:
-                    if isinstance(topic, dict) and 'Text' in topic:
+            params = {'q': query, 'format': 'json', 'no_html': '1', 'skip_disambig': '1'}
+            async with session.get(url, params=params, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    results = []
+                    
+                    # Get instant answer if available
+                    if data.get('Abstract'):
                         results.append({
-                            'title': topic.get('Text', '')[:100] + '...',
-                            'url': topic.get('FirstURL', ''),
-                            'snippet': topic.get('Text', ''),
-                            'source': 'DuckDuckGo'
+                            'title': data.get('AbstractText', 'DuckDuckGo Instant Answer'),
+                            'url': data.get('AbstractURL', ''),
+                            'snippet': data.get('Abstract', ''),
+                            'source': 'DuckDuckGo Instant'
                         })
-                        
-                return results[:num_results]
+                    
+                    # Get related topics
+                    for topic in data.get('RelatedTopics', [])[:num_results]:
+                        if isinstance(topic, dict) and 'Text' in topic:
+                            results.append({
+                                'title': topic.get('Text', '')[:100] + '...',
+                                'url': topic.get('FirstURL', ''),
+                                'snippet': topic.get('Text', ''),
+                                'source': 'DuckDuckGo'
+                            })
+                            
+                    return results[:num_results]
         except Exception as e:
             st.error(f"DuckDuckGo search error: {str(e)}")
         return []
     
-    def search_wikipedia(self, query: str, num_results: int = 5) -> List[Dict]:
+    async def search_wikipedia(self, session: aiohttp.ClientSession, query: str, num_results: int = 5) -> List[Dict]:
         """Search Wikipedia"""
         try:
             search_url = "https://en.wikipedia.org/api/rest_v1/page/summary/"
             encoded_query = quote_plus(query)
             
-            response = requests.get(f"{search_url}{encoded_query}", timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                return [{
-                    'title': data.get('title', ''),
-                    'url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
-                    'snippet': data.get('extract', ''),
-                    'source': 'Wikipedia'
-                }]
+            async with session.get(f"{search_url}{encoded_query}", timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    return [{
+                        'title': data.get('title', ''),
+                        'url': data.get('content_urls', {}).get('desktop', {}).get('page', ''),
+                        'snippet': data.get('extract', ''),
+                        'source': 'Wikipedia'
+                    }]
         except:
             pass
             
         # Fallback to search API
         try:
             search_api = "https://en.wikipedia.org/w/api.php"
-            params = {
-                'action': 'query',
-                'format': 'json',
-                'list': 'search',
-                'srsearch': query,
-                'srlimit': num_results
-            }
-            
-            response = requests.get(search_api, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                results = []
-                
-                for item in data.get('query', {}).get('search', []):
-                    title = item.get('title', '')
-                    results.append({
-                        'title': title,
-                        'url': f"https://en.wikipedia.org/wiki/{quote_plus(title)}",
-                        'snippet': re.sub(r'<[^>]+>', '', item.get('snippet', '')),
-                        'source': 'Wikipedia'
-                    })
-                return results
+            params = {'action': 'query', 'format': 'json', 'list': 'search', 'srsearch': query, 'srlimit': num_results}
+            async with session.get(search_api, params=params, timeout=10) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    results = []
+                    
+                    for item in data.get('query', {}).get('search', []):
+                        title = item.get('title', '')
+                        results.append({
+                            'title': title,
+                            'url': f"https://en.wikipedia.org/wiki/{quote_plus(title)}",
+                            'snippet': re.sub(r'<[^>]+>', '', item.get('snippet', '')),
+                            'source': 'Wikipedia'
+                        })
+                    return results
         except Exception as e:
             st.error(f"Wikipedia search error: {str(e)}")
         return []
     
-    def get_stock_data(self, symbol: str) -> Dict:
+    async def get_stock_data(self, symbol: str) -> Dict:
         """Get stock data using yfinance"""
         try:
-            stock = yf.Ticker(symbol)
-            info = stock.info
-            hist = stock.history(period="1mo")
-            
-            return {
-                'symbol': symbol,
-                'name': info.get('longName', symbol),
-                'price': info.get('currentPrice', 0),
-                'change': info.get('regularMarketChangePercent', 0),
-                'volume': info.get('volume', 0),
-                'market_cap': info.get('marketCap', 0),
-                'history': hist.to_dict('records') if not hist.empty else []
-            }
+            # yfinance is not natively async, so we run it in a thread pool
+            loop = asyncio.get_event_loop()
+            def sync_yf_call():
+                stock = yf.Ticker(symbol)
+                info = stock.info
+                hist = stock.history(period="1mo")
+                return {
+                    'symbol': symbol,
+                    'name': info.get('longName', symbol),
+                    'price': info.get('currentPrice', 0),
+                    'change': info.get('regularMarketChangePercent', 0),
+                    'volume': info.get('volume', 0),
+                    'market_cap': info.get('marketCap', 0),
+                    'history': hist.to_dict('records') if not hist.empty else []
+                }
+            return await loop.run_in_executor(None, sync_yf_call)
         except Exception as e:
             st.error(f"Stock data error: {str(e)}")
             return {}
     
-    def comprehensive_search(self, query: str, filters: Dict, max_results: int = 20) -> List[ResearchResult]:
+    async def comprehensive_search(self, query: str, filters: Dict, max_results: int = 20) -> List[ResearchResult]:
         """Perform comprehensive search across multiple sources"""
         cache_key = self.get_cache_key(query, filters)
         
@@ -197,17 +183,22 @@ class AdvancedResearchAssistant:
         if cache_key in self.cache:
             return self.cache[cache_key]
         
+        tasks = []
+        async with aiohttp.ClientSession() as session:
+            # Search sources based on filters
+            if filters.get('include_web', True):
+                tasks.append(self.search_duckduckgo(session, query, max_results // 2))
+            
+            if filters.get('include_wikipedia', True):
+                # Allocate a portion of max_results to Wikipedia, ensuring at least 1.
+                tasks.append(self.search_wikipedia(session, query, max(1, max_results // 4)))
+            
+            # Gather results from all tasks
+            results_from_sources = await asyncio.gather(*tasks)
+        
         all_results = []
-        
-        # Search sources based on filters
-        if filters.get('include_web', True):
-            web_results = self.search_duckduckgo(query, max_results // 2)
-            all_results.extend(web_results)
-        
-        if filters.get('include_wikipedia', True):
-            # Allocate a portion of max_results to Wikipedia, ensuring at least 1.
-            wiki_results = self.search_wikipedia(query, max(1, max_results // 4))
-            all_results.extend(wiki_results)
+        for source_result in results_from_sources:
+            all_results.extend(source_result)
         
         # Convert to ResearchResult objects
         research_results = []
@@ -228,13 +219,14 @@ class AdvancedResearchAssistant:
         
         # Filter by sentiment if specified
         if filters.get('sentiment_filter'):
-            sentiment_type = filters['sentiment_filter']
-            if sentiment_type == 'positive':
-                research_results = [r for r in research_results if r.sentiment > 0.1]
-            elif sentiment_type == 'negative':
-                research_results = [r for r in research_results if r.sentiment < -0.1]
-            elif sentiment_type == 'neutral':
-                research_results = [r for r in research_results if -0.1 <= r.sentiment <= 0.1]
+            sentiment_map = {
+                'positive': lambda s: s > 0.1,
+                'negative': lambda s: s < -0.1,
+                'neutral': lambda s: -0.1 <= s <= 0.1
+            }
+            if filters['sentiment_filter'] in sentiment_map:
+                filter_func = sentiment_map[filters['sentiment_filter']]
+                research_results = [r for r in research_results if filter_func(r.sentiment)]
         
         # Filter by date range if specified
         if filters.get('date_range') and filters['date_range'] != 'All Time':
@@ -260,7 +252,7 @@ class AdvancedResearchAssistant:
         
         return research_results[:max_results]
 
-def gemini_flash_response(prompt: str, api_key: str) -> str:
+async def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
@@ -282,18 +274,21 @@ def gemini_flash_response(prompt: str, api_key: str) -> str:
     }
     params = {"key": api_key}
     try:
-        response = requests.post(endpoint, headers=headers, params=params, json=payload, timeout=90)
-        if response.status_code == 200:
-            data = response.json()
-            if "candidates" in data and data["candidates"]:
-                return data["candidates"][0]["content"]["parts"][0]["text"]
-            return f"Gemini API returned an empty response. Response: {data}"
-        else:
-            return f"Gemini API error: {response.status_code} - {response.text}"
-    except Exception as e:
+        # Use asyncio to run the synchronous requests.post in a non-blocking way
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(None, lambda: requests.post(endpoint, headers=headers, params=params, json=payload, timeout=90))
+        response.raise_for_status()  # Raises an HTTPError for bad responses (4xx or 5xx)
+        data = response.json()
+    except requests.exceptions.RequestException as e:
         return f"Gemini API request failed: {e}"
+    except Exception as e:
+        return f"An unexpected error occurred with the Gemini API: {e}"
+    
+    if "candidates" in data and data["candidates"]:
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+    return f"Gemini API returned an empty response. Response: {data}"
 
-def main():
+async def main():
     st.set_page_config(
         page_title="🔬 Mini Research Assistant Pro",
         page_icon="🔬",
@@ -355,9 +350,9 @@ def main():
         st.header("🎛️ Research Controls")
         # --- AI Assistant API Key ---
         st.subheader("✨ AI Assistant")
-        gemini_api_key = st.text_input("Google Gemini API Key", type="password", key="gemini_api_key")
-        # Do NOT assign to st.session_state["gemini_api_key"] here to avoid StreamlitAPIException
-        # Use gemini_api_key directly everywhere below
+        if 'gemini_api_key' not in st.session_state:
+            st.session_state.gemini_api_key = ''
+        st.session_state.gemini_api_key = st.text_input("Google Gemini API Key", type="password", value=st.session_state.gemini_api_key)
         
         # Search Configuration
         st.subheader("Search Settings")
@@ -394,52 +389,60 @@ def main():
         
         selected_template = st.selectbox("Choose Template", ["Custom"] + list(templates.keys()))
         
-        # --- NEW SECTION: Productivity Tools ---
+        # --- Productivity Tools ---
         st.subheader("🛠️ Productivity Tools")
-        tool_options = [
-            "Select a tool...",
-            "Technical Text Simplifier",
-            "Content Summarizer",
-            "Email Drafter",
-            "Standalone Sentiment Analyzer",
-            "Standalone Keyword Extractor",
-            "Social Media Post Generator",
-            "Code Explainer",
-            "Translation Tool",
-            "Idea Generator",
-            "Proofreader & Grammar Checker"
-        ]
-        selected_tool = st.selectbox("Choose a tool", tool_options, key="selected_tool")
+        
+        with st.expander("Standalone Tools", expanded=False):
+            st.markdown("##### Analyze Sentiment")
+            sentiment_text = st.text_area("Paste text to analyze its sentiment:", height=100, key="sentiment_input")
+            if st.button("😊 Analyze Sentiment", key="analyze_sentiment_button"):
+                if sentiment_text.strip():
+                    sentiment = ra.analyze_sentiment(sentiment_text)
+                    sentiment_label = "Positive" if sentiment > 0.1 else "Negative" if sentiment < -0.1 else "Neutral"
+                    st.success(f"**Sentiment Score:** `{sentiment:.3f}`\n\n**Overall Sentiment:** {sentiment_label}")
+                else:
+                    st.warning("Please paste some text to analyze.")
 
-        # Tool implementations
-        if selected_tool != "Select a tool...":
-            # Handle tools that don't need an API key first
-            if selected_tool == "Standalone Sentiment Analyzer":
-                st.markdown("##### Analyze Sentiment")
-                sentiment_text = st.text_area("Paste text to analyze its sentiment:", height=150, key="sentiment_input")
-                if st.button("😊 Analyze Sentiment"):
-                    if sentiment_text.strip():
-                        sentiment = ra.analyze_sentiment(sentiment_text)
-                        sentiment_label = "Positive" if sentiment > 0.1 else "Negative" if sentiment < -0.1 else "Neutral"
-                        st.session_state.tool_output = f"**Sentiment Score:** `{sentiment:.3f}`\n\n**Overall Sentiment:** {sentiment_label}"
+            st.markdown("---")
+            st.markdown("##### Extract Keywords")
+            keyword_text = st.text_area("Paste text to extract keywords from:", height=100, key="keyword_input")
+            if st.button("🏷️ Extract Keywords", key="extract_keywords_button"):
+                if keyword_text.strip():
+                    keywords = ra.extract_keywords(keyword_text, top_n=15)
+                    if keywords:
+                        st.success("**Extracted Keywords:**")
+                        st.write(", ".join(f"`{k}`" for k in keywords))
                     else:
-                        st.warning("Please paste some text to analyze.")
+                        st.info("No significant keywords were found.")
+                else:
+                    st.warning("Please paste some text to extract keywords from.")
 
-            elif selected_tool == "Standalone Keyword Extractor":
-                st.markdown("##### Extract Keywords")
-                keyword_text = st.text_area("Paste text to extract keywords from:", height=150, key="keyword_input")
-                if st.button("🏷️ Extract Keywords"):
+        with st.expander("AI-Powered Tools (Requires API Key)", expanded=False):
+            if not st.session_state.gemini_api_key:
+                st.info("Enter your Gemini API key above to use these tools.")
+            else:
+                # Example: Content Summarizer
+                st.markdown("##### Content Summarizer")
+                summarizer_text = st.text_area("Paste text to summarize:", height=100, key="summarizer_input")
+                if st.button("✍️ Summarize", key="summarize_button"):
+                    if summarizer_text.strip():
+                        prompt = f"Please summarize the following text concisely:\n\n---\n\n{summarizer_text}"
+                        with st.spinner("AI is summarizing..."):
+                            summary = await gemini_flash_response(prompt, st.session_state.gemini_api_key)
+                        st.success("**Summary:**")
+                        st.markdown(summary)
+                    else:
+                        st.warning("Please paste some text to summarize.")
 
         if st.button("📊 Analytics Dashboard"):
             st.session_state.show_analytics = True
     
     # --- Main Tabs: AI Assistant and Research Tool ---
     tab_ai, tab_research = st.tabs(["✨ AI Assistant", "🔬 Research Tool"])
-
     with tab_ai:
         st.markdown("## ✨ Gemini 2.5 Flash AI Assistant")
         st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
-        if not gemini_api_key:
+        if not st.session_state.gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
         else:
             ai_prompt = st.text_area("Enter your prompt for Gemini 2.5 Flash", "", height=120)
@@ -449,7 +452,7 @@ def main():
             if st.button("Generate AI Response", key="ai_generate"):
                 if ai_prompt.strip():
                     with st.spinner("Gemini is thinking..."):
-                        ai_response = gemini_flash_response(ai_prompt, gemini_api_key)
+                        ai_response = await gemini_flash_response(ai_prompt, st.session_state.gemini_api_key)
                     st.session_state["ai_response"] = ai_response
                 else:
                     st.warning("Please enter a prompt for Gemini.")
@@ -542,12 +545,13 @@ def main():
 
                     render_html_to_pdf(soup, pdf)
                     pdf_output = pdf.output(dest='S').encode('latin1', errors='replace')
-                    st.download_button(
-                        label="⬇️ Export as PDF",
-                        data=pdf_output,
-                        file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                        mime="application/pdf"
-                    )
+                    if pdf_output:
+                        st.download_button(
+                            label="⬇️ Export as PDF",
+                            data=pdf_output,
+                            file_name=f"gemini_response_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            mime="application/pdf"
+                        )
                 except ImportError:
                     st.info("Install `fpdf`, `markdown`, and `beautifulsoup4` packages to enable styled PDF export: `pip install fpdf markdown beautifulsoup4`")
                 # Clear the response after displaying
@@ -595,7 +599,7 @@ def main():
                 'date_range': date_range
             }
             with st.spinner("🔍 Conducting comprehensive research..."):
-                results = ra.comprehensive_search(query, filters, max_results)
+                results = await ra.comprehensive_search(query, filters, max_results)
                 st.session_state.last_results = results
                 st.session_state.last_query = query
                 
@@ -622,7 +626,7 @@ def main():
         # Display stock data if requested
         if search_button and "Stock Data" in search_sources and 'stock_symbol' in locals() and stock_symbol:
             with st.spinner(f"📈 Fetching stock data for {stock_symbol}..."):
-                stock_data = ra.get_stock_data(stock_symbol.upper())
+                stock_data = await ra.get_stock_data(stock_symbol.upper())
                 
                 if stock_data:
                     st.subheader(f"📊 Stock Analysis: {stock_data.get('name', stock_symbol)}")
@@ -813,7 +817,7 @@ def main():
                 st.subheader("✨ AI-Powered Research Analysis")
                 st.markdown("Use Gemini to generate a comprehensive summary and analysis of your research results.")
 
-                if not gemini_api_key:
+                if not st.session_state.gemini_api_key:
                     st.info("Please enter your Google Gemini API key in the sidebar to use this feature.")
                 else:
                     if st.button("🤖 Generate Comprehensive Analysis", use_container_width=True, key="generate_ai_analysis"):
@@ -868,7 +872,7 @@ You must generate a detailed report with the following sections. Be expansive an
 **Final Instruction:** Your final output must be a long-form, detailed report. Do not be brief. Use the full token allocation if necessary to provide a truly comprehensive and valuable analysis. Your response should be written in professional, clear, and precise language.
 """
                         with st.spinner("🤖 The AI is analyzing your results... this may take a moment..."):
-                            ai_analysis_response = gemini_flash_response(analysis_prompt, gemini_api_key)
+                            ai_analysis_response = await gemini_flash_response(analysis_prompt, st.session_state.gemini_api_key)
                         
                         st.markdown("### 🧠 AI Analysis Report")
                         st.markdown(ai_analysis_response)
@@ -884,4 +888,4 @@ You must generate a detailed report with the following sections. Be expansive an
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
