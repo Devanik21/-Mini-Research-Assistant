@@ -490,58 +490,62 @@ async def main():
                     pdf.set_font("Arial", size=12)
 
                     def render_html_to_pdf(soup, pdf):
+                        def sanitize(text):
+                            """Encode and decode to replace unsupported chars for FPDF."""
+                            return text.encode('latin-1', 'replace').decode('latin-1')
+
                         for elem in soup.children:
                             if elem.name == "h1":
                                 pdf.set_font("Arial", "B", 20)
                                 pdf.set_text_color(44, 62, 80)
-                                pdf.cell(0, 12, elem.get_text(), ln=1)
+                                pdf.cell(0, 12, sanitize(elem.get_text()), ln=1)
                                 pdf.set_font("Arial", size=12)
                                 pdf.set_text_color(0, 0, 0)
                             elif elem.name == "h2":
                                 pdf.set_font("Arial", "B", 16)
                                 pdf.set_text_color(52, 152, 219)
-                                pdf.cell(0, 10, elem.get_text(), ln=1)
+                                pdf.cell(0, 10, sanitize(elem.get_text()), ln=1)
                                 pdf.set_font("Arial", size=12)
                                 pdf.set_text_color(0, 0, 0)
                             elif elem.name == "h3":
                                 pdf.set_font("Arial", "B", 14)
                                 pdf.set_text_color(39, 174, 96)
-                                pdf.cell(0, 9, elem.get_text(), ln=1)
+                                pdf.cell(0, 9, sanitize(elem.get_text()), ln=1)
                                 pdf.set_font("Arial", size=12)
                                 pdf.set_text_color(0, 0, 0)
                             elif elem.name == "h4":
                                 pdf.set_font("Arial", "B", 12)
                                 pdf.set_text_color(142, 68, 173)
-                                pdf.cell(0, 8, elem.get_text(), ln=1)
+                                pdf.cell(0, 8, sanitize(elem.get_text()), ln=1)
                                 pdf.set_font("Arial", size=12)
                                 pdf.set_text_color(0, 0, 0)
                             elif elem.name == "ul":
                                 for li in elem.find_all("li", recursive=False):
                                     pdf.cell(5)
                                     # Use a plain ASCII dash instead of Unicode bullet
-                                    pdf.multi_cell(0, 8, "- " + li.get_text())
+                                    pdf.multi_cell(0, 8, sanitize("- " + li.get_text()))
                             elif elem.name == "ol":
                                 for idx, li in enumerate(elem.find_all("li", recursive=False), 1):
                                     pdf.cell(5)
-                                    pdf.multi_cell(0, 8, f"{idx}. {li.get_text()}")
+                                    pdf.multi_cell(0, 8, sanitize(f"{idx}. {li.get_text()}"))
                             elif elem.name == "strong" or elem.name == "b":
                                 pdf.set_font("Arial", "B", 12)
-                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.multi_cell(0, 8, sanitize(elem.get_text()))
                                 pdf.set_font("Arial", size=12)
                             elif elem.name == "em" or elem.name == "i":
                                 pdf.set_font("Arial", "I", 12)
-                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.multi_cell(0, 8, sanitize(elem.get_text()))
                                 pdf.set_font("Arial", size=12)
                             elif elem.name == "p":
-                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.multi_cell(0, 8, sanitize(elem.get_text()))
                             elif elem.name is None:
                                 # Plain text node
                                 text = elem.string
                                 if text and text.strip():
-                                    pdf.multi_cell(0, 8, text)
+                                    pdf.multi_cell(0, 8, sanitize(text))
                             else:
                                 # Fallback for other tags
-                                pdf.multi_cell(0, 8, elem.get_text())
+                                pdf.multi_cell(0, 8, sanitize(elem.get_text()))
 
                     render_html_to_pdf(soup, pdf)
                     pdf_output = pdf.output(dest='S').encode('latin1', errors='replace')
