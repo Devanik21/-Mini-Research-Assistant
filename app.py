@@ -344,7 +344,7 @@ def main():
     with st.sidebar:
         st.header("🎛️ Research Controls")
         # --- AI Assistant API Key ---
-        st.subheader("🤖 AI Assistant")
+        st.subheader("🦄 AI Assistant")
         gemini_api_key = st.text_input("Google Gemini API Key", type="password", key="gemini_api_key")
         # Do NOT assign to st.session_state["gemini_api_key"] here to avoid StreamlitAPIException
         # Use gemini_api_key directly everywhere below
@@ -388,10 +388,10 @@ def main():
             st.session_state.show_analytics = True
     
     # --- Main Tabs: AI Assistant and Research Tool ---
-    tab_ai, tab_research = st.tabs(["🤖 AI Assistant", "🔬 Research Tool"])
+    tab_ai, tab_research = st.tabs(["🦄 AI Assistant", "🔬 Research Tool"])
 
     with tab_ai:
-        st.markdown("## 🤖 Gemini 2.5 Flash AI Assistant")
+        st.markdown("## 🦄 Gemini 2.5 Flash AI Assistant")
         st.markdown("Ask anything! This space is powered by Gemini 2.5 Flash and is independent of the research tool.")
         if not gemini_api_key:
             st.info("Please enter your Google Gemini API key in the sidebar to use the AI Assistant.")
