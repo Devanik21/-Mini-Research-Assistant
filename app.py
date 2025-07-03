@@ -263,7 +263,7 @@ class AdvancedResearchAssistant:
 def gemini_flash_response(prompt: str, api_key: str) -> str:
     """Get a response from Gemini 2.5 Flash for a given prompt."""
     import requests
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent"
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     headers = {"Content-Type": "application/json"}
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
